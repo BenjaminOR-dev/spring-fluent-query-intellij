@@ -123,7 +123,7 @@ public final class FluentQueryPathReference extends PsiReferenceBase<PsiLiteralE
         }
     }
 
-    static int contentStartOffset(@NotNull PsiLiteralExpression literal) {
+    public static int contentStartOffset(@NotNull PsiLiteralExpression literal) {
         String text = literal.getText();
         if (text.startsWith("\"\"\"")) {
             return 3;
