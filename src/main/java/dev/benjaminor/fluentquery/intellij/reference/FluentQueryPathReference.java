@@ -6,7 +6,6 @@ import com.intellij.psi.PsiLiteralExpression;
 import com.intellij.psi.PsiReferenceBase;
 import dev.benjaminor.fluentquery.intellij.model.FluentQueryCallSite;
 import dev.benjaminor.fluentquery.intellij.model.FluentQueryPathRole;
-import dev.benjaminor.fluentquery.intellij.model.JpaProperty;
 import dev.benjaminor.fluentquery.intellij.model.PathResolveResult;
 import dev.benjaminor.fluentquery.intellij.model.PathResolver;
 import org.jetbrains.annotations.NotNull;
@@ -58,13 +57,9 @@ public final class FluentQueryPathReference extends PsiReferenceBase<PsiLiteralE
 
     @Override
     public Object @NotNull [] getVariants() {
-        List<JpaProperty> props = PathResolver.complete(
-                site.entityType(), pathThroughSegment, associationsOnly);
-        List<Object> variants = new ArrayList<>(props.size());
-        for (JpaProperty p : props) {
-            variants.add(p.name());
-        }
-        return variants.toArray();
+        // Completion is handled exclusively by FluentQueryPathCompletionContributor
+        // to avoid duplicate lookups (plain name + "attribute" type text).
+        return EMPTY_ARRAY;
     }
 
     public static FluentQueryPathReference @NotNull [] forCallSite(@NotNull FluentQueryCallSite site) {

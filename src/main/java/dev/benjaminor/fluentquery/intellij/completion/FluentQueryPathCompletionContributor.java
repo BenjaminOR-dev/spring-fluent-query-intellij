@@ -21,6 +21,8 @@ import dev.benjaminor.fluentquery.intellij.model.PathStrings;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
+
 /**
  * Autocomplete for FluentQuery path string literals (also covers empty / mid-token cases).
  */
@@ -54,7 +56,9 @@ public final class FluentQueryPathCompletionContributor extends CompletionContri
 
                         // select shorthand: after ':' complete attributes of the association leaf
                         if (site.role() == FluentQueryPathRole.SELECT && prefix.indexOf(':') >= 0) {
-                            completeSelectShorthand(site, prefix, result);
+                            if (completeSelectShorthand(site, prefix, result)) {
+                                result.stopHere();
+                            }
                             return;
                         }
 
@@ -63,14 +67,26 @@ public final class FluentQueryPathCompletionContributor extends CompletionContri
                         }
 
                         boolean assocOnly = site.role() == FluentQueryPathRole.ASSOCIATION;
-                        for (JpaProperty p : PathResolver.complete(site.entityType(), prefix, assocOnly)) {
-                            result.addElement(lookup(p));
+                        List<JpaProperty> props =
+                                PathResolver.complete(site.entityType(), prefix, assocOnly);
+                        // Match only the current segment (after the last '.'), so "datosKyc." still
+                        // suggests "usoCuenta" instead of requiring lookups to start with "datosKyc.".
+                        CompletionResultSet segmentResult =
+                                result.withPrefixMatcher(segmentFragment(prefix));
+                        for (JpaProperty p : props) {
+                            segmentResult.addElement(lookup(p));
+                        }
+                        if (!props.isEmpty()) {
+                            segmentResult.stopHere();
                         }
                     }
                 });
     }
 
-    private static void completeSelectShorthand(
+    /**
+     * @return {@code true} if at least one lookup was added
+     */
+    private static boolean completeSelectShorthand(
             @NotNull FluentQueryCallSite site,
             @NotNull String prefix,
             @NotNull CompletionResultSet result) {
@@ -79,15 +95,23 @@ public final class FluentQueryPathCompletionContributor extends CompletionContri
         String after = prefix.substring(colon + 1);
         int lastComma = after.lastIndexOf(',');
         String colPrefix = lastComma >= 0 ? after.substring(lastComma + 1).trim() : after.trim();
-        String parentPath = assoc;
-        // Complete attributes on leaf of association
-        var resolved = PathResolver.resolve(site.entityType(), parentPath, true);
+        var resolved = PathResolver.resolve(site.entityType(), assoc, true);
         if (!resolved.isResolved() || resolved.tipEntity() == null) {
-            return;
+            return false;
         }
-        for (JpaProperty p : PathResolver.complete(resolved.tipEntity(), colPrefix, false)) {
-            result.addElement(lookup(p));
+        List<JpaProperty> props =
+                PathResolver.complete(resolved.tipEntity(), colPrefix, false);
+        CompletionResultSet segmentResult = result.withPrefixMatcher(colPrefix);
+        for (JpaProperty p : props) {
+            segmentResult.addElement(lookup(p));
         }
+        return !props.isEmpty();
+    }
+
+    /** Text after the last {@code '.'}, or the whole prefix if there is no dot. */
+    static @NotNull String segmentFragment(@NotNull String pathPrefix) {
+        int lastDot = pathPrefix.lastIndexOf('.');
+        return lastDot >= 0 ? pathPrefix.substring(lastDot + 1) : pathPrefix;
     }
 
     private static @NotNull LookupElementBuilder lookup(@NotNull JpaProperty property) {
