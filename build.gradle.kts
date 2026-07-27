@@ -25,6 +25,10 @@ dependencies {
         testFramework(TestFrameworkType.Platform)
         testFramework(TestFrameworkType.Plugin.Java)
     }
+
+    // Required explicitly: Platform test frameworks do not put JUnit on the compile classpath.
+    // LightJavaCodeInsightFixtureTestCase needs junit.framework.TestCase; unit tests use org.junit.*.
+    testImplementation("junit:junit:4.13.2")
 }
 
 intellijPlatform {
