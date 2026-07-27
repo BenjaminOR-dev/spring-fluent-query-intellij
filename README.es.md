@@ -26,7 +26,7 @@ Hermano de:
 - Inspección: path no resuelto → **ERROR**
 - Grafo de entidades JPA del **proyecto abierto** (campos + `@ManyToOne` / `@OneToMany` / …; sin JAR de Fluent Query en runtime del plugin)
 
-> Versión actual: **0.1.1** · [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33175-spring-fluent-query) · build desde fuente con `./gradlew buildPlugin`
+> Versión actual: **0.1.2** · [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33175-spring-fluent-query) · build desde fuente con `./gradlew buildPlugin`
 
 ## ¿Por qué usar este plugin?
 

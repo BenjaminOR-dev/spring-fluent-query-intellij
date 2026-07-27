@@ -19,7 +19,10 @@ public final class PathValidator {
     }
 
     public static @NotNull List<Issue> validate(@NotNull FluentQueryCallSite site) {
-        return validate(site.entityType(), site.pathText(), site.role(), site.methodName());
+        List<Issue> issues = new ArrayList<>();
+        issues.addAll(validate(site.entityType(), site.pathText(), site.role(), site.methodName()));
+        issues.addAll(SiblingPathArgs.duplicateIssues(site));
+        return issues;
     }
 
     public static @NotNull List<Issue> validate(

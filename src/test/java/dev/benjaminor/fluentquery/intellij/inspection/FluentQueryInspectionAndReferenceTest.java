@@ -1,12 +1,16 @@
 package dev.benjaminor.fluentquery.intellij.inspection;
 
 import com.intellij.codeInsight.daemon.impl.HighlightInfo;
+import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.psi.PsiReference;
 import dev.benjaminor.fluentquery.intellij.FluentQueryLightTestCase;
 import dev.benjaminor.fluentquery.intellij.reference.FluentQueryPathReference;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class FluentQueryInspectionAndReferenceTest extends FluentQueryLightTestCase {
 
@@ -155,6 +159,40 @@ public class FluentQueryInspectionAndReferenceTest extends FluentQueryLightTestC
                 """);
         PsiReference ref = myFixture.getReferenceAtCaretPositionWithAssertion();
         assertNotNull(ref.resolve());
+    }
+
+    public void testDuplicateSelectPathIsError() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().select("email", "email");
+                  }
+                }
+                """);
+        List<HighlightInfo> infos = myFixture.doHighlighting(HighlightSeverity.ERROR);
+        assertTrue(infos.stream().anyMatch(i ->
+                i.getDescription() != null && i.getDescription().contains("Duplicate path")));
+    }
+
+    public void testCompletesSelectExcludingUsed() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().select("email", "name", "<caret>");
+                  }
+                }
+                """);
+        myFixture.completeBasic();
+        LookupElement[] elements = myFixture.getLookupElements();
+        assertNotNull(elements);
+        Set<String> names = Arrays.stream(elements)
+                .map(LookupElement::getLookupString)
+                .collect(Collectors.toSet());
+        assertFalse(names.contains("email"));
+        assertFalse(names.contains("name"));
+        assertTrue(names.contains("id"));
     }
 
     public void testRelatedFilterLeafColumn() {

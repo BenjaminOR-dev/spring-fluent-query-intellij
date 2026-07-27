@@ -5,6 +5,13 @@ Changelog
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-07-27
+
+### Fixed
+
+- Exclude already-used paths from autocomplete in `select` / `fetch` / `orderBy*` varargs
+- ERROR inspection for duplicate path arguments in those methods (and duplicate columns in `select` shorthand)
+
 ## [0.1.1] — 2026-07-27
 
 ### Fixed / aligned with spring-fluent-query

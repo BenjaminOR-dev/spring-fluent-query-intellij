@@ -26,22 +26,22 @@ Token docs: [Publishing a Plugin](https://plugins.jetbrains.com/docs/intellij/pu
 In [`gradle.properties`](gradle.properties):
 
 ```properties
-pluginVersion = 0.1.1
+pluginVersion = 0.1.2
 ```
 
 Commit that change on `main` (or the release branch). The tag must be `v` + that version
-(`v0.1.1` ↔ `pluginVersion = 0.1.1`). The publish job refuses SNAPSHOT and tag mismatches.
+(`v0.1.2` ↔ `pluginVersion = 0.1.2`). The publish job refuses SNAPSHOT and tag mismatches.
 
 ### 2. Tag and push
 
 ```bash
-git tag -a v0.1.1 -m "Release 0.1.1"
-git push origin v0.1.1
+git tag -a v0.1.2 -m "Release 0.1.2"
+git push origin v0.1.2
 ```
 
 ### 3. Review the draft Release
 
-GitHub → **Releases** → open the draft for `v0.1.1`:
+GitHub → **Releases** → open the draft for `v0.1.2`:
 
 - Check release notes and the attached ZIP.
 - Click **Publish release** when ready (only after JetBrains has approved the listing if this is the first upload).

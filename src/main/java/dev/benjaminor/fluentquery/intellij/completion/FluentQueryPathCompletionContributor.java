@@ -19,10 +19,12 @@ import dev.benjaminor.fluentquery.intellij.model.JpaPropertyKind;
 import dev.benjaminor.fluentquery.intellij.model.PathResolver;
 import dev.benjaminor.fluentquery.intellij.model.PathStrings;
 import dev.benjaminor.fluentquery.intellij.model.PathSuggestionScope;
+import dev.benjaminor.fluentquery.intellij.model.SiblingPathArgs;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Autocomplete for FluentQuery path string literals (also covers empty / mid-token cases).
@@ -74,12 +76,18 @@ public final class FluentQueryPathCompletionContributor extends CompletionContri
                         PathSuggestionScope scope = suggestionScope(site.role(), prefix);
                         List<JpaProperty> props =
                                 PathResolver.complete(site.entityType(), prefix, scope);
+                        Set<String> taken = SiblingPathArgs.takenCanonicalPaths(site, prefix);
                         CompletionResultSet segmentResult =
                                 result.withPrefixMatcher(segmentFragment(prefix));
+                        int added = 0;
                         for (JpaProperty p : props) {
+                            if (SiblingPathArgs.wouldDuplicate(taken, site.role(), prefix, p.name())) {
+                                continue;
+                            }
                             segmentResult.addElement(lookup(p));
+                            added++;
                         }
-                        if (!props.isEmpty()) {
+                        if (added > 0) {
                             segmentResult.stopHere();
                         }
                     }
@@ -115,11 +123,17 @@ public final class FluentQueryPathCompletionContributor extends CompletionContri
         }
         List<JpaProperty> props = PathResolver.complete(
                 resolved.tipEntity(), colPrefix, PathSuggestionScope.ATTRIBUTES_ONLY);
+        Set<String> taken = SiblingPathArgs.takenCanonicalPaths(site, prefix);
         CompletionResultSet segmentResult = result.withPrefixMatcher(colPrefix);
+        int added = 0;
         for (JpaProperty p : props) {
+            if (SiblingPathArgs.wouldDuplicate(taken, site.role(), prefix, p.name())) {
+                continue;
+            }
             segmentResult.addElement(lookup(p));
+            added++;
         }
-        return !props.isEmpty();
+        return added > 0;
     }
 
     static @NotNull String segmentFragment(@NotNull String pathPrefix) {

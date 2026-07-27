@@ -26,7 +26,7 @@ Companion to:
 - Inspection: unresolved path → **ERROR**
 - JPA entity graph from the **open project** (fields + `@ManyToOne` / `@OneToMany` / …; no Fluent Query JAR at plugin runtime)
 
-> Current version: **0.1.1** · [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33175-spring-fluent-query) · build from source with `./gradlew buildPlugin`
+> Current version: **0.1.2** · [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33175-spring-fluent-query) · build from source with `./gradlew buildPlugin`
 
 ## Why use this plugin?
 

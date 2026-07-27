@@ -60,12 +60,16 @@ intellijPlatform {
         """.trimIndent()
 
         changeNotes = """
+            <h3>0.1.2</h3>
+            <ul>
+              <li>Autocomplete hides paths already used in the same select/fetch/orderBy call</li>
+              <li>ERROR on duplicate path args (including select shorthand <code>rel:col1,col2</code>)</li>
+            </ul>
             <h3>0.1.1</h3>
             <ul>
               <li>Aligned path rules with spring-fluent-query (where = scalars only; fetch rejects ':')</li>
               <li>Nested completion after trailing dots; orderBy/latest property paths</li>
               <li>Map.of / FetchRel / PropertyFilters support; clearer inspection messages</li>
-              <li>select shorthand validation and Ctrl+click on columns after ':'</li>
             </ul>
         """.trimIndent()
     }
