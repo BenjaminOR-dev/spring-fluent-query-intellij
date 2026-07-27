@@ -27,6 +27,15 @@ Thumbs.db
 # IntelliJ Platform sandbox
 .intellijPlatform/
 
+# Local plugin ZIPs copied to repo root for Install from Disk
+spring-fluent-query-intellij-*.zip
+
 # Docker named-volume leftovers (if ever bind-mounted locally)
 .docker-gradle/
+
+# JVM crash dumps
+hs_err_pid*
+replay_pid*
+*.hprof
+.run/
 

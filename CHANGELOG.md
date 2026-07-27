@@ -5,14 +5,34 @@ Changelog
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-07-27
+
+### Fixed / aligned with spring-fluent-query
+
+- Nested path completion after trailing `.` (segment prefix matcher; no duplicate variants)
+- `where*` suggests and accepts **scalar attributes only** (associations → clear ERROR + what to use instead)
+- `orderBy*` / `latest` / `oldest`: nested property paths (`profile.bio`) allowed
+- `fetch` / `whereHas` / `FetchRel`: reject `:` with actionable message (`select` for column lists)
+- `select`: leaf must be scalar; shorthand validated like the library
+- Map keys in `fetch(Map.of(...))` / `Map.ofEntries(Map.entry(...))`, `new FetchRel(...)`, `PropertyFilters.*`
+- Repository generic hierarchy (`Repo extends BaseRepo<Entity>`) + JPA mapping annotations on getters
+- Ctrl+click on columns after `:` in `select("rel:col")`
+- Inspection messages rewritten to explain *why* and *what to use instead*
+
+### Docs / release
+
+- README coverage table aligned with library rules (EN / ES / PT)
+- Release workflow runs `check` + `verifyPlugin` before draft ZIP / Marketplace publish
+- Plugin Verifier: Compatible on IC 2024.3 / 2025.1 / 2025.2
+
+## [0.1.0]
+
 ### Added
 
-- Scaffold del plugin IntelliJ (Gradle Platform Plugin 2.x)
-- Grafo JPA cacheado (`model/`): propiedades, asociaciones, `@Embedded`; omite `@Transient` / `serialVersionUID`
-- Resolve de call-site: `FluentQuery<T>` / `FluentQueryRepository` / `RelatedFilter` (leaf)
-- Path references, autocomplete e inspección ERROR (incl. aviso si `where` usa dots)
-- Soporte `select` shorthand (`status:id,name`)
-- Tests unitarios + `LightJavaCodeInsightFixture` (grafo, inspection, references, completion)
-- Docker Compose (`gradle` / `buildPlugin` / `verify`) con JDK 21
-- Release: tag `v*` → draft GitHub Release (+ ZIP); al publicar → JetBrains Marketplace
-- CI: `buildPlugin`, `check`, `verifyPlugin` + artifact ZIP
+- IntelliJ plugin scaffold (Gradle Platform Plugin 2.x)
+- Cached JPA entity graph (`model/`): properties, associations, `@Embedded`; skips `@Transient` / `serialVersionUID`
+- Call-site resolve: `FluentQuery<T>` / `FluentQueryRepository` / `RelatedFilter` (leaf)
+- Path references, autocomplete, and ERROR inspection
+- `select` shorthand support (`status:id,name`)
+- Unit tests + `LightJavaCodeInsightFixture`
+- Docker Compose + CI + Marketplace publish workflow

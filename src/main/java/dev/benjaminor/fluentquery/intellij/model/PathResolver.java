@@ -80,11 +80,26 @@ public final class PathResolver {
     /**
      * Completes suggestions for the segment under construction at {@code pathPrefix}.
      * Example: {@code "prof"} → properties of root; {@code "profile.a"} → properties of profile target.
+     *
+     * @param associationsOnly {@code true} → only nestable props; {@code false} → any property
      */
     public static @NotNull List<JpaProperty> complete(
             @NotNull PsiClass rootEntity,
             @NotNull String pathPrefix,
             boolean associationsOnly) {
+        return complete(
+                rootEntity,
+                pathPrefix,
+                associationsOnly ? PathSuggestionScope.ASSOCIATIONS_ONLY : PathSuggestionScope.ANY);
+    }
+
+    /**
+     * Completes suggestions filtered by {@link PathSuggestionScope}.
+     */
+    public static @NotNull List<JpaProperty> complete(
+            @NotNull PsiClass rootEntity,
+            @NotNull String pathPrefix,
+            @NotNull PathSuggestionScope suggestionScope) {
         String trimmed = pathPrefix.trim();
         int lastDot = trimmed.lastIndexOf('.');
         String parentPath = lastDot >= 0 ? trimmed.substring(0, lastDot) : "";
@@ -103,7 +118,7 @@ public final class PathResolver {
         String lower = fragment.toLowerCase();
         List<JpaProperty> out = new ArrayList<>();
         for (JpaProperty p : graph.properties()) {
-            if (associationsOnly && !p.kind().canNest()) {
+            if (!suggestionScope.accepts(p.kind())) {
                 continue;
             }
             if (lower.isEmpty() || p.name().toLowerCase().startsWith(lower)) {

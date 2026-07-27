@@ -44,7 +44,6 @@ public final class FluentQueryPathReference extends PsiReferenceBase<PsiLiteralE
         PathResolveResult result = PathResolver.resolve(
                 site.entityType(), pathThroughSegment, associationsOnly);
         if (!result.isResolved() || segmentIndex >= result.segments().size()) {
-            // Soft reference: still try prefix resolve for navigation of valid leading segments
             PathResolveResult soft = PathResolver.resolve(
                     site.entityType(), pathThroughSegment, associationsOnly || segmentIndex > 0);
             if (segmentIndex < soft.segments().size()) {
@@ -57,8 +56,6 @@ public final class FluentQueryPathReference extends PsiReferenceBase<PsiLiteralE
 
     @Override
     public Object @NotNull [] getVariants() {
-        // Completion is handled exclusively by FluentQueryPathCompletionContributor
-        // to avoid duplicate lookups (plain name + "attribute" type text).
         return EMPTY_ARRAY;
     }
 
@@ -69,12 +66,7 @@ public final class FluentQueryPathReference extends PsiReferenceBase<PsiLiteralE
         List<FluentQueryPathReference> refs = new ArrayList<>();
 
         if (site.role() == FluentQueryPathRole.SELECT && raw.indexOf(':') >= 0) {
-            int colon = raw.indexOf(':');
-            String assoc = raw.substring(0, colon).trim();
-            int assocAt = raw.indexOf(assoc);
-            if (!assoc.isEmpty() && assocAt >= 0) {
-                addSegmentRefs(refs, literal, site, assoc, contentStart + assocAt, true);
-            }
+            addSelectShorthandRefs(refs, literal, site, raw, contentStart);
             return refs.toArray(FluentQueryPathReference[]::new);
         }
 
@@ -85,6 +77,39 @@ public final class FluentQueryPathReference extends PsiReferenceBase<PsiLiteralE
         boolean associationsOnly = site.role() == FluentQueryPathRole.ASSOCIATION;
         addSegmentRefs(refs, literal, site, raw, contentStart, associationsOnly);
         return refs.toArray(FluentQueryPathReference[]::new);
+    }
+
+    private static void addSelectShorthandRefs(
+            @NotNull List<FluentQueryPathReference> refs,
+            @NotNull PsiLiteralExpression literal,
+            @NotNull FluentQueryCallSite site,
+            @NotNull String raw,
+            int contentStart) {
+        int colon = raw.indexOf(':');
+        String assoc = raw.substring(0, colon).trim();
+        int assocAt = raw.indexOf(assoc);
+        if (!assoc.isEmpty() && assocAt >= 0) {
+            addSegmentRefs(refs, literal, site, assoc, contentStart + assocAt, true);
+        }
+        String colsPart = raw.substring(colon + 1);
+        int colsBase = contentStart + colon + 1;
+        int offset = 0;
+        for (String rawCol : colsPart.split(",", -1)) {
+            String col = rawCol.trim();
+            int leading = rawCol.indexOf(col);
+            if (leading < 0) {
+                leading = 0;
+            }
+            if (!col.isEmpty() && !assoc.isEmpty()) {
+                String pathThrough = assoc + "." + col;
+                TextRange range = TextRange.from(colsBase + offset + leading, col.length());
+                // Column is the last segment of assoc.col — index = assocSegments
+                int segmentIndex = assoc.isEmpty() ? 0 : assoc.split("\\.", -1).length;
+                refs.add(new FluentQueryPathReference(
+                        literal, range, site, pathThrough, segmentIndex, false));
+            }
+            offset += rawCol.length() + 1;
+        }
     }
 
     private static void addSegmentRefs(

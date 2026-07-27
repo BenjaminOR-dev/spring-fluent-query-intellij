@@ -21,13 +21,19 @@ public class FluentQueryMethodsTest {
     }
 
     @Test
-    public void associationAndSelect() {
+    public void associationSelectAndPropertyPath() {
         assertEquals(
                 FluentQueryPathRole.ASSOCIATION,
                 FluentQueryMethods.roleFor("fetch", FluentQueryMethods.FQ_FLUENT_QUERY, 0, 1));
         assertEquals(
                 FluentQueryPathRole.SELECT,
                 FluentQueryMethods.roleFor("select", FluentQueryMethods.FQ_FLUENT_QUERY, 0, 1));
+        assertEquals(
+                FluentQueryPathRole.PROPERTY_PATH,
+                FluentQueryMethods.roleFor("orderByAsc", FluentQueryMethods.FQ_FLUENT_QUERY, 0, 1));
+        assertEquals(
+                FluentQueryPathRole.PROPERTY_PATH,
+                FluentQueryMethods.roleFor("latest", FluentQueryMethods.FQ_FLUENT_QUERY, 0, 1));
     }
 
     @Test
@@ -41,6 +47,7 @@ public class FluentQueryMethodsTest {
                 FluentQueryMethods.roleFor(
                         "whereRelatedEqual", FluentQueryMethods.FQ_FLUENT_QUERY, 1, 3));
         assertTrue(FluentQueryMethods.isRelationThenAttribute("whereRelation"));
+        assertTrue(FluentQueryMethods.isRelationThenAttribute("hasRelatedPropertyEqual"));
     }
 
     @Test
@@ -64,6 +71,20 @@ public class FluentQueryMethodsTest {
                 FluentQueryMethods.roleFor("of", FluentQueryMethods.FQ_FETCH_REL, 0, 1));
         assertNull(FluentQueryMethods.roleFor("of", null, 0, 1));
         assertFalse(FluentQueryMethods.isKnownMethodName("of"));
+    }
+
+    @Test
+    public void propertyFilters() {
+        assertEquals(
+                FluentQueryPathRole.ATTRIBUTE,
+                FluentQueryMethods.roleFor(
+                        "hasPropertyEqual", FluentQueryMethods.FQ_PROPERTY_FILTERS, 0, 2));
+        assertEquals(
+                FluentQueryPathRole.ASSOCIATION,
+                FluentQueryMethods.roleFor(
+                        "hasRelation", FluentQueryMethods.FQ_PROPERTY_FILTERS, 0, 1));
+        assertTrue(FluentQueryMethods.isSingleSegmentAssociation("hasNoRelation"));
+        assertTrue(FluentQueryMethods.isFluentQueryFamily(FluentQueryMethods.FQ_PROPERTY_FILTERS));
     }
 
     @Test

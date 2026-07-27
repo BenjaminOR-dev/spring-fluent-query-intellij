@@ -38,7 +38,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build plugin ZIP
-        run: ./gradlew buildPlugin
+        run: ./gradlew check verifyPlugin buildPlugin
 
       - name: Create draft GitHub Release
         uses: softprops/action-gh-release@v2
@@ -109,4 +109,4 @@ jobs:
             echo "Secret PUBLISH_TOKEN is not set" >&2
             exit 1
           fi
-          ./gradlew publishPlugin
+          ./gradlew check verifyPlugin publishPlugin

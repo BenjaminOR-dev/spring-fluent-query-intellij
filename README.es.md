@@ -90,14 +90,18 @@ Abre un proyecto que dependa de spring-fluent-query y tenga clases `@Entity` JPA
 
 ## Qué cubre
 
-| API Fluent Query (args string) | Intención del plugin |
-|--------------------------------|----------------------|
-| `where*` / `orWhere*` / `optionalWhere*` | Resolver / completar paths de atributos raíz o anidados |
-| `select(...)` | Igual para propiedades proyectadas |
-| `fetch` / `with` / `fetchCollection` | Paths de asociación (to-one / to-many) |
-| `whereHas` / `whereDoesntHave` / `whereRelation` / `whereRelated*` | Nombres de relación + paths anidados relacionados |
+| API Fluent Query (args string) | Qué hace el plugin |
+|--------------------------------|--------------------|
+| `where*` / `orWhere*` / `optionalWhere*` / RelatedFilter | Solo **atributos escalares** (sin puntos ni relaciones) |
+| `orderBy*` / `latest` / `oldest` | Paths de propiedad (puntos OK; hoja escalar, p. ej. `profile.bio`) |
+| `select(...)` | Paths + shorthand `assoc:col1,col2` (hoja escalar) |
+| `fetch` / `with` / `fetchCollection` / `withCollection` / `FetchRel` / claves `Map.of` | Solo **asociaciones** (puntos OK; `:` prohibido) |
+| `whereHas*` / `whereRelated*` / `whereRelation*` | Relación (+ columna hoja en related/relation) |
+| `PropertyFilters.hasProperty*` / `hasRelated*` / `hasRelation` | Mismos roles sobre el repositorio |
 
-Fuera de alcance: reescribir queries, ejecutar SQL o reemplazar la librería Maven.
+Reglas clave: `where("a.b")` → error (usa `whereRelated*` / `whereHas`); `fetch("rel:cols")` → error (usa `select`); `where("profile")` → error si `profile` es una asociación.
+
+Fuera de alcance: reescribir queries, ejecutar SQL, constantes/concatenaciones (solo literales `"..."`), Kotlin.
 
 ## Arquitectura del módulo
 

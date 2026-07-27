@@ -61,6 +61,11 @@ public class JpaEntityGraphAndPathResolverTest extends FluentQueryLightTestCase 
         List<JpaProperty> assocs = PathResolver.complete(user, "", true);
         assertTrue(assocs.stream().anyMatch(p -> "profile".equals(p.name())));
         assertTrue(assocs.stream().noneMatch(p -> "email".equals(p.name())));
+
+        List<JpaProperty> attrsOnly =
+                PathResolver.complete(user, "", PathSuggestionScope.ATTRIBUTES_ONLY);
+        assertTrue(attrsOnly.stream().anyMatch(p -> "email".equals(p.name())));
+        assertTrue(attrsOnly.stream().noneMatch(p -> "profile".equals(p.name())));
     }
 
     public void testCallAnalyzerResolvesRepositoryQuery() {
@@ -98,5 +103,34 @@ public class JpaEntityGraphAndPathResolverTest extends FluentQueryLightTestCase 
         List<PathValidator.Issue> okFetch =
                 PathValidator.validate(user, "profile", FluentQueryPathRole.ASSOCIATION);
         assertTrue(okFetch.isEmpty());
+
+        List<PathValidator.Issue> assocInWhere =
+                PathValidator.validate(user, "profile", FluentQueryPathRole.ATTRIBUTE, "where");
+        assertEquals(1, assocInWhere.size());
+        assertEquals(
+                "inspection.unresolved.path.association.attribute",
+                assocInWhere.get(0).messageKey());
+
+        List<PathValidator.Issue> colonFetch =
+                PathValidator.validate(user, "profile:id", FluentQueryPathRole.ASSOCIATION, "fetch");
+        assertEquals(1, colonFetch.size());
+        assertEquals(
+                "inspection.unresolved.path.colon.in.association",
+                colonFetch.get(0).messageKey());
+
+        List<PathValidator.Issue> orderOk =
+                PathValidator.validate(user, "profile.bio", FluentQueryPathRole.PROPERTY_PATH);
+        assertTrue(orderOk.isEmpty());
+
+        List<PathValidator.Issue> selectAssocLeaf =
+                PathValidator.validate(user, "profile", FluentQueryPathRole.SELECT);
+        assertEquals(1, selectAssocLeaf.size());
+        assertEquals(
+                "inspection.unresolved.path.non.basic.leaf",
+                selectAssocLeaf.get(0).messageKey());
+
+        List<PathValidator.Issue> selectOk =
+                PathValidator.validate(user, "profile:bio", FluentQueryPathRole.SELECT);
+        assertTrue(selectOk.isEmpty());
     }
 }

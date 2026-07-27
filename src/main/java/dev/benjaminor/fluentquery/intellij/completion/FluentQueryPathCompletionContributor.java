@@ -18,6 +18,7 @@ import dev.benjaminor.fluentquery.intellij.model.JpaProperty;
 import dev.benjaminor.fluentquery.intellij.model.JpaPropertyKind;
 import dev.benjaminor.fluentquery.intellij.model.PathResolver;
 import dev.benjaminor.fluentquery.intellij.model.PathStrings;
+import dev.benjaminor.fluentquery.intellij.model.PathSuggestionScope;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -54,7 +55,11 @@ public final class FluentQueryPathCompletionContributor extends CompletionContri
 
                         String prefix = prefixAtCaret(literal, parameters.getOffset(), site.pathText());
 
-                        // select shorthand: after ':' complete attributes of the association leaf
+                        if (site.role() == FluentQueryPathRole.ASSOCIATION && prefix.indexOf(':') >= 0) {
+                            return;
+                        }
+
+                        // select shorthand: after ':' complete scalar columns of the association leaf
                         if (site.role() == FluentQueryPathRole.SELECT && prefix.indexOf(':') >= 0) {
                             if (completeSelectShorthand(site, prefix, result)) {
                                 result.stopHere();
@@ -66,11 +71,9 @@ public final class FluentQueryPathCompletionContributor extends CompletionContri
                             return;
                         }
 
-                        boolean assocOnly = site.role() == FluentQueryPathRole.ASSOCIATION;
+                        PathSuggestionScope scope = suggestionScope(site.role(), prefix);
                         List<JpaProperty> props =
-                                PathResolver.complete(site.entityType(), prefix, assocOnly);
-                        // Match only the current segment (after the last '.'), so "datosKyc." still
-                        // suggests "usoCuenta" instead of requiring lookups to start with "datosKyc.".
+                                PathResolver.complete(site.entityType(), prefix, scope);
                         CompletionResultSet segmentResult =
                                 result.withPrefixMatcher(segmentFragment(prefix));
                         for (JpaProperty p : props) {
@@ -84,8 +87,19 @@ public final class FluentQueryPathCompletionContributor extends CompletionContri
     }
 
     /**
-     * @return {@code true} if at least one lookup was added
+     * Nested property / select paths: allow associations while navigating; prefer scalars at the
+     * root when there is no dot yet so {@code where}-like APIs stay clear. For the segment after a
+     * trailing {@code '.'}, offer both nestable and scalar (ANY) so users can go deeper or finish.
      */
+    private static @NotNull PathSuggestionScope suggestionScope(
+            @NotNull FluentQueryPathRole role, @NotNull String prefix) {
+        return switch (role) {
+            case ASSOCIATION -> PathSuggestionScope.ASSOCIATIONS_ONLY;
+            case ATTRIBUTE -> PathSuggestionScope.ATTRIBUTES_ONLY;
+            case PROPERTY_PATH, SELECT -> PathSuggestionScope.ANY;
+        };
+    }
+
     private static boolean completeSelectShorthand(
             @NotNull FluentQueryCallSite site,
             @NotNull String prefix,
@@ -99,8 +113,8 @@ public final class FluentQueryPathCompletionContributor extends CompletionContri
         if (!resolved.isResolved() || resolved.tipEntity() == null) {
             return false;
         }
-        List<JpaProperty> props =
-                PathResolver.complete(resolved.tipEntity(), colPrefix, false);
+        List<JpaProperty> props = PathResolver.complete(
+                resolved.tipEntity(), colPrefix, PathSuggestionScope.ATTRIBUTES_ONLY);
         CompletionResultSet segmentResult = result.withPrefixMatcher(colPrefix);
         for (JpaProperty p : props) {
             segmentResult.addElement(lookup(p));
@@ -108,7 +122,6 @@ public final class FluentQueryPathCompletionContributor extends CompletionContri
         return !props.isEmpty();
     }
 
-    /** Text after the last {@code '.'}, or the whole prefix if there is no dot. */
     static @NotNull String segmentFragment(@NotNull String pathPrefix) {
         int lastDot = pathPrefix.lastIndexOf('.');
         return lastDot >= 0 ? pathPrefix.substring(lastDot + 1) : pathPrefix;
@@ -145,7 +158,6 @@ public final class FluentQueryPathCompletionContributor extends CompletionContri
         }
         String cleaned = PathStrings.stripCompletionDummy(pathText);
         if (relative > cleaned.length()) {
-            // Caret may sit inside the dummy identifier inserted by the platform
             String rawContent = text.length() > contentStart
                     ? text.substring(contentStart, Math.max(contentStart, text.length() - 1))
                     : "";

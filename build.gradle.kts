@@ -60,10 +60,12 @@ intellijPlatform {
         """.trimIndent()
 
         changeNotes = """
+            <h3>0.1.1</h3>
             <ul>
-              <li>JPA entity graph from open project sources</li>
-              <li>Path references, autocomplete, and ERROR inspection</li>
-              <li>select shorthand (<code>assoc:col1,col2</code>)</li>
+              <li>Aligned path rules with spring-fluent-query (where = scalars only; fetch rejects ':')</li>
+              <li>Nested completion after trailing dots; orderBy/latest property paths</li>
+              <li>Map.of / FetchRel / PropertyFilters support; clearer inspection messages</li>
+              <li>select shorthand validation and Ctrl+click on columns after ':'</li>
             </ul>
         """.trimIndent()
     }

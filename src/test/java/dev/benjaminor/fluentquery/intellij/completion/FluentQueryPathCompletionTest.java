@@ -22,7 +22,8 @@ public class FluentQueryPathCompletionTest extends FluentQueryLightTestCase {
         Set<String> names = lookupNames();
         assertTrue(names.contains("email"));
         assertTrue(names.contains("name"));
-        assertTrue(names.contains("profile"));
+        assertFalse("where must not suggest associations", names.contains("profile"));
+        assertFalse(names.contains("books"));
     }
 
     public void testCompletesNestedAssociationAttributes() {
@@ -54,6 +55,21 @@ public class FluentQueryPathCompletionTest extends FluentQueryLightTestCase {
         assertTrue(names.contains("profile"));
         assertTrue(names.contains("books"));
         assertFalse(names.contains("email"));
+    }
+
+    public void testCompletesNestedOrderBy() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().orderByAsc("profile.<caret>");
+                  }
+                }
+                """);
+        myFixture.completeBasic();
+        Set<String> names = lookupNames();
+        assertTrue(names.contains("bio"));
+        assertTrue(names.contains("active"));
     }
 
     private Set<String> lookupNames() {

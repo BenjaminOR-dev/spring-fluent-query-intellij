@@ -90,14 +90,18 @@ Open a project that depends on spring-fluent-query and has JPA `@Entity` classes
 
 ## What it covers
 
-| Fluent Query API (string args) | Plugin intent |
-|--------------------------------|---------------|
-| `where*` / `orWhere*` / `optionalWhere*` | Resolve / complete root or nested attribute paths |
-| `select(...)` | Same for projected properties |
-| `fetch` / `with` / `fetchCollection` | Association paths (to-one / to-many) |
-| `whereHas` / `whereDoesntHave` / `whereRelation` / `whereRelated*` | Relation names + nested related paths |
+| Fluent Query API (string args) | What the plugin does |
+|--------------------------------|----------------------|
+| `where*` / `orWhere*` / `optionalWhere*` / RelatedFilter | **Scalar attributes only** (no dots, no associations) |
+| `orderBy*` / `latest` / `oldest` | Property paths (dots OK; scalar leaf, e.g. `profile.bio`) |
+| `select(...)` | Paths + `assoc:col1,col2` shorthand (scalar leaf) |
+| `fetch` / `with` / `fetchCollection` / `withCollection` / `FetchRel` / `Map.of` keys | **Associations only** (dots OK; `:` forbidden) |
+| `whereHas*` / `whereRelated*` / `whereRelation*` | Relation (+ leaf column for related/relation) |
+| `PropertyFilters.hasProperty*` / `hasRelated*` / `hasRelation` | Same roles on the repository |
 
-Out of scope: rewriting queries, running SQL, or replacing the Maven library.
+Key rules: `where("a.b")` → error (use `whereRelated*` / `whereHas`); `fetch("rel:cols")` → error (use `select`); association name in `where` → error.
+
+Out of scope: rewriting queries, running SQL, non-literal strings, Kotlin.
 
 ## Module architecture
 

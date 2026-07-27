@@ -60,7 +60,7 @@ public final class FluentQueryUnresolvedPathInspection extends AbstractBaseJavaL
                     holder.registerProblem(
                             expression,
                             rangeInElement,
-                            FluentQueryBundle.message(issue.messageKey(), issue.badSegment()));
+                            FluentQueryBundle.message(issue.messageKey(), issue.messageArgs()));
                 }
             }
         };

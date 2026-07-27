@@ -60,4 +60,16 @@ public final class FluentQueryCallSite {
     public boolean associationsOnly() {
         return role == FluentQueryPathRole.ASSOCIATION;
     }
+
+    /** Leaf must be nestable (fetch / whereHas). */
+    public boolean requiresAssociationLeaf() {
+        return role == FluentQueryPathRole.ASSOCIATION;
+    }
+
+    /** Leaf must be a scalar column (where / select / orderBy). */
+    public boolean requiresBasicLeaf() {
+        return role == FluentQueryPathRole.ATTRIBUTE
+                || role == FluentQueryPathRole.PROPERTY_PATH
+                || role == FluentQueryPathRole.SELECT;
+    }
 }

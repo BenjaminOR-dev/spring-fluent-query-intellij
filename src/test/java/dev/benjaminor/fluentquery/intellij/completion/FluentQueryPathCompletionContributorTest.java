@@ -8,9 +8,9 @@ public class FluentQueryPathCompletionContributorTest {
 
     @Test
     public void segmentFragmentAfterDot() {
-        assertEquals("", FluentQueryPathCompletionContributor.segmentFragment("datosKyc."));
-        assertEquals("uso", FluentQueryPathCompletionContributor.segmentFragment("datosKyc.uso"));
-        assertEquals("estatus", FluentQueryPathCompletionContributor.segmentFragment("estatus"));
+        assertEquals("", FluentQueryPathCompletionContributor.segmentFragment("profile."));
+        assertEquals("bi", FluentQueryPathCompletionContributor.segmentFragment("profile.bi"));
+        assertEquals("email", FluentQueryPathCompletionContributor.segmentFragment("email"));
         assertEquals("", FluentQueryPathCompletionContributor.segmentFragment("a.b."));
     }
 }

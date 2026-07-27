@@ -5,9 +5,11 @@ import com.intellij.psi.PsiClassType;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiExpression;
 import com.intellij.psi.PsiExpressionList;
+import com.intellij.psi.PsiJavaCodeReferenceElement;
 import com.intellij.psi.PsiLiteralExpression;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiMethodCallExpression;
+import com.intellij.psi.PsiNewExpression;
 import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiReferenceExpression;
 import com.intellij.psi.PsiType;
@@ -37,6 +39,12 @@ public final class FluentQueryCallAnalyzer {
             return null;
         }
         PsiElement parent = argList.getParent();
+
+        // new FetchRel("path", …)
+        if (parent instanceof PsiNewExpression newExpr) {
+            return analyzeFetchRelConstructor(literal, pathText, argList, newExpr);
+        }
+
         if (!(parent instanceof PsiMethodCallExpression call)) {
             return null;
         }
@@ -44,6 +52,11 @@ public final class FluentQueryCallAnalyzer {
         int argIndex = indexOf(argList.getExpressions(), literal);
         if (argIndex < 0) {
             return null;
+        }
+
+        // fetch(Map.of(...)) / Map.ofEntries(Map.entry(...)) — key is not a direct fetch arg
+        if (isMapFactoryCall(call) || isMapEntryCall(call)) {
+            return analyzeMapKeyLiteral(literal, pathText, call, argIndex);
         }
 
         PsiMethod method = call.resolveMethod();
@@ -58,12 +71,13 @@ public final class FluentQueryCallAnalyzer {
                 ? method.getContainingClass().getQualifiedName()
                 : null;
 
-        // Resolved to a non-FluentQuery class → ignore (name collision).
-        // Unresolved method → accept known FluentQuery API names as a heuristic.
+        // User repository subtypes may override / re-export PropertyFilters methods.
         if (containingFqcn != null && !FluentQueryMethods.isFluentQueryFamily(containingFqcn)) {
-            return null;
-        }
-        if (containingFqcn == null && !FluentQueryMethods.isKnownMethodName(methodName)) {
+            if (!FluentQueryMethods.isKnownMethodName(methodName)) {
+                return null;
+            }
+            containingFqcn = null;
+        } else if (containingFqcn == null && !FluentQueryMethods.isKnownMethodName(methodName)) {
             return null;
         }
 
@@ -81,6 +95,102 @@ public final class FluentQueryCallAnalyzer {
         return new FluentQueryCallSite(literal, call, role, entity, pathText, methodName);
     }
 
+    private static @Nullable FluentQueryCallSite analyzeFetchRelConstructor(
+            @NotNull PsiLiteralExpression literal,
+            @NotNull String pathText,
+            @NotNull PsiExpressionList argList,
+            @NotNull PsiNewExpression newExpr) {
+        if (indexOf(argList.getExpressions(), literal) != 0) {
+            return null;
+        }
+        PsiJavaCodeReferenceElement classRef = newExpr.getClassReference();
+        if (classRef == null) {
+            return null;
+        }
+        PsiElement resolved = classRef.resolve();
+        PsiClass psiClass = resolved instanceof PsiClass c ? c : null;
+        if (psiClass == null
+                || !FluentQueryMethods.FQ_FETCH_REL.equals(psiClass.getQualifiedName())) {
+            return null;
+        }
+        PsiMethodCallExpression outer =
+                PsiTreeUtil.getParentOfType(newExpr, PsiMethodCallExpression.class, true);
+        if (outer == null) {
+            return null;
+        }
+        PsiClass entity = entityFromFluentReceiver(outer);
+        if (entity == null) {
+            return null;
+        }
+        String methodName = outer.getMethodExpression().getReferenceName();
+        if (methodName == null) {
+            methodName = "fetch";
+        }
+        return new FluentQueryCallSite(
+                literal, outer, FluentQueryPathRole.ASSOCIATION, entity, pathText, methodName);
+    }
+
+    private static @Nullable FluentQueryCallSite analyzeMapKeyLiteral(
+            @NotNull PsiLiteralExpression literal,
+            @NotNull String pathText,
+            @NotNull PsiMethodCallExpression mapCall,
+            int argIndex) {
+        String mapMethod = mapCall.getMethodExpression().getReferenceName();
+        if ("entry".equals(mapMethod) && argIndex != 0) {
+            return null;
+        }
+        // Map.of(k, v, k, v, …) — keys are even indices
+        if ("of".equals(mapMethod) && (argIndex % 2) != 0) {
+            return null;
+        }
+        PsiMethodCallExpression outer = findEnclosingAssociationCall(mapCall);
+        if (outer == null) {
+            return null;
+        }
+        PsiClass entity = entityFromFluentReceiver(outer);
+        if (entity == null) {
+            return null;
+        }
+        String methodName = outer.getMethodExpression().getReferenceName();
+        if (methodName == null) {
+            return null;
+        }
+        return new FluentQueryCallSite(
+                literal, outer, FluentQueryPathRole.ASSOCIATION, entity, pathText, methodName);
+    }
+
+    private static boolean isMapFactoryCall(@NotNull PsiMethodCallExpression call) {
+        String name = call.getMethodExpression().getReferenceName();
+        if (name == null || !FluentQueryMethods.isMapFactoryMethod(name)) {
+            return false;
+        }
+        PsiMethod method = call.resolveMethod();
+        if (method != null && method.getContainingClass() != null) {
+            String qn = method.getContainingClass().getQualifiedName();
+            return "java.util.Map".equals(qn)
+                    || "java.util.Collections".equals(qn)
+                    || (qn != null && qn.endsWith(".ImmutableMap"));
+        }
+        return findEnclosingAssociationCall(call) != null;
+    }
+
+    private static boolean isMapEntryCall(@NotNull PsiMethodCallExpression call) {
+        if (!"entry".equals(call.getMethodExpression().getReferenceName())) {
+            return false;
+        }
+        PsiMethod method = call.resolveMethod();
+        if (method != null && method.getContainingClass() != null) {
+            String qn = method.getContainingClass().getQualifiedName();
+            if (!"java.util.Map".equals(qn)) {
+                return false;
+            }
+        }
+        // Only treat as fetch path when nested under Map.ofEntries → fetch/with
+        PsiMethodCallExpression parent =
+                PsiTreeUtil.getParentOfType(call, PsiMethodCallExpression.class, true);
+        return parent != null && isMapFactoryCall(parent);
+    }
+
     private static int indexOf(PsiExpression @NotNull [] expressions, @NotNull PsiLiteralExpression literal) {
         for (int i = 0; i < expressions.length; i++) {
             if (expressions[i] == literal) {
@@ -91,8 +201,7 @@ public final class FluentQueryCallAnalyzer {
     }
 
     private static @Nullable String methodNameFromCall(@NotNull PsiMethodCallExpression call) {
-        PsiReferenceExpression ref = call.getMethodExpression();
-        return ref.getReferenceName();
+        return call.getMethodExpression().getReferenceName();
     }
 
     private static @Nullable PsiClass resolveEntityType(
@@ -104,19 +213,22 @@ public final class FluentQueryCallAnalyzer {
             @Nullable String containingFqcn) {
 
         if (FluentQueryMethods.FQ_FETCH_REL.equals(containingFqcn)) {
-            // FetchRel.of is usually nested in fetch(...) — try outer FluentQuery type
-            PsiMethodCallExpression outer = PsiTreeUtil.getParentOfType(call, PsiMethodCallExpression.class, true);
+            PsiMethodCallExpression outer =
+                    PsiTreeUtil.getParentOfType(call, PsiMethodCallExpression.class, true);
             PsiClass fromOuter = outer != null ? entityFromFluentReceiver(outer) : null;
             if (fromOuter != null) {
                 return fromOuter;
             }
         }
 
-        // whereRelated*(relation, column): column resolves on leaf of relation path
         if (FluentQueryMethods.isRelationThenAttribute(methodName)
                 && role == FluentQueryPathRole.ATTRIBUTE
                 && argIndex == 1) {
             PsiClass root = entityFromFluentReceiver(call);
+            if (root == null) {
+                // PropertyFilters may be invoked on the repository directly
+                root = entityFromRepositoryReceiver(call);
+            }
             if (root == null) {
                 return null;
             }
@@ -134,7 +246,30 @@ public final class FluentQueryCallAnalyzer {
             return entityFromRelatedFilterContext(call);
         }
 
-        return entityFromFluentReceiver(call);
+        if (FluentQueryMethods.FQ_PROPERTY_FILTERS.equals(containingFqcn)) {
+            PsiClass fromRepo = entityFromRepositoryReceiver(call);
+            if (fromRepo != null) {
+                return fromRepo;
+            }
+        }
+
+        PsiClass fromFluent = entityFromFluentReceiver(call);
+        if (fromFluent != null) {
+            return fromFluent;
+        }
+        return entityFromRepositoryReceiver(call);
+    }
+
+    private static @Nullable PsiClass entityFromRepositoryReceiver(@NotNull PsiMethodCallExpression call) {
+        PsiExpression qualifier = call.getMethodExpression().getQualifierExpression();
+        if (qualifier == null) {
+            return null;
+        }
+        PsiClass fromType = entityTypeArgument(qualifier.getType());
+        if (fromType != null) {
+            return fromType;
+        }
+        return entityFromRepositoryType(qualifier.getType());
     }
 
     private static boolean isRelatedFilterReceiver(@NotNull PsiMethodCallExpression call) {
@@ -151,13 +286,11 @@ public final class FluentQueryCallAnalyzer {
             return null;
         }
 
-        // Direct FluentQuery<T> / chained call typed as FluentQuery<T>
         PsiClass fromType = entityTypeArgument(qualifier.getType());
         if (fromType != null) {
             return fromType;
         }
 
-        // Walk qualifier chain: repo.query().where(...).fetch(...)
         PsiMethodCallExpression current = qualifier instanceof PsiMethodCallExpression m ? m : null;
         int guard = 0;
         while (current != null && guard++ < 32) {
@@ -182,7 +315,6 @@ public final class FluentQueryCallAnalyzer {
             current = q instanceof PsiMethodCallExpression m ? m : null;
         }
 
-        // Variable typed FluentQueryRepository / FluentQuery
         if (qualifier instanceof PsiReferenceExpression ref) {
             PsiElement resolved = ref.resolve();
             if (resolved instanceof PsiVariable variable) {
@@ -221,7 +353,6 @@ public final class FluentQueryCallAnalyzer {
     }
 
     private static @Nullable PsiClass entityFromRelatedFilterContext(@NotNull PsiMethodCallExpression call) {
-        // Lambda parameter: whereHas("books", f -> f.where(...))
         PsiExpression qualifier = call.getMethodExpression().getQualifierExpression();
         if (qualifier instanceof PsiReferenceExpression ref) {
             PsiElement resolved = ref.resolve();
@@ -241,14 +372,13 @@ public final class FluentQueryCallAnalyzer {
 
     private static @Nullable PsiMethodCallExpression findEnclosingAssociationCall(
             @NotNull PsiElement from) {
-        PsiMethodCallExpression current = PsiTreeUtil.getParentOfType(from, PsiMethodCallExpression.class, true);
+        PsiMethodCallExpression current =
+                PsiTreeUtil.getParentOfType(from, PsiMethodCallExpression.class, true);
         int guard = 0;
         while (current != null && guard++ < 24) {
             String name = current.getMethodExpression().getReferenceName();
-            if (name != null && (FluentQueryMethods.roleFor(name, FluentQueryMethods.FQ_FLUENT_QUERY, 0, 1)
-                    == FluentQueryPathRole.ASSOCIATION
+            if (name != null && (FluentQueryMethods.isAssociationMethodName(name)
                     || FluentQueryMethods.isRelationThenAttribute(name))) {
-                // whereHas / fetch / whereRelated* with consumer
                 return current;
             }
             current = PsiTreeUtil.getParentOfType(current, PsiMethodCallExpression.class, true);
@@ -273,9 +403,6 @@ public final class FluentQueryCallAnalyzer {
         return rel.isResolved() && rel.tipEntity() != null ? rel.tipEntity() : null;
     }
 
-    /**
-     * Extracts {@code T} from {@code FluentQuery<T>}, {@code JpaSpecificationExecutor<T>}, etc.
-     */
     private static @Nullable PsiClass entityTypeArgument(@Nullable PsiType type) {
         if (!(type instanceof PsiClassType classType)) {
             return null;
@@ -288,13 +415,13 @@ public final class FluentQueryCallAnalyzer {
         if (FluentQueryMethods.FQ_FLUENT_QUERY.equals(qn)
                 || "org.springframework.data.jpa.repository.JpaSpecificationExecutor".equals(qn)
                 || "org.springframework.data.jpa.repository.JpaRepository".equals(qn)
-                || FluentQueryMethods.FQ_REPOSITORY.equals(qn)) {
+                || FluentQueryMethods.FQ_REPOSITORY.equals(qn)
+                || FluentQueryMethods.FQ_PROPERTY_FILTERS.equals(qn)) {
             PsiType[] params = classType.getParameters();
             if (params.length >= 1) {
                 return PsiUtil.resolveClassInType(params[0]);
             }
         }
-        // FluentQueryRepository subtype: walk supers for FluentQueryRepository<T,ID>
         PsiClass fromRepo = entityFromRepositoryClass(resolved, classType);
         if (fromRepo != null) {
             return fromRepo;
@@ -315,28 +442,52 @@ public final class FluentQueryCallAnalyzer {
 
     private static @Nullable PsiClass entityFromRepositoryClass(
             @NotNull PsiClass psiClass, @NotNull PsiClassType siteType) {
-        if (FluentQueryMethods.FQ_REPOSITORY.equals(psiClass.getQualifiedName())) {
+        java.util.ArrayDeque<PsiClassType> queue = new java.util.ArrayDeque<>();
+        queue.add(siteType);
+        java.util.HashSet<PsiClass> visited = new java.util.HashSet<>();
+        int guard = 0;
+        while (!queue.isEmpty() && guard++ < 64) {
+            PsiClassType current = queue.poll();
+            var resolveResult = current.resolveGenerics();
+            PsiClass resolved = resolveResult.getElement();
+            if (resolved == null || !visited.add(resolved)) {
+                continue;
+            }
+            String qn = resolved.getQualifiedName();
+            if (isEntityTypeHost(qn)) {
+                PsiType[] params = current.getParameters();
+                if (params.length >= 1) {
+                    PsiClass entity = PsiUtil.resolveClassInType(params[0]);
+                    if (entity != null) {
+                        return entity;
+                    }
+                }
+            }
+            var substitutor = resolveResult.getSubstitutor();
+            for (PsiClassType superType : resolved.getSuperTypes()) {
+                PsiType substituted = substitutor.substitute(superType);
+                if (substituted instanceof PsiClassType sct) {
+                    queue.add(sct);
+                }
+            }
+        }
+        // Fallback: bare PsiClass without usable site generics (rare)
+        if (FluentQueryMethods.FQ_REPOSITORY.equals(psiClass.getQualifiedName())
+                || FluentQueryMethods.FQ_PROPERTY_FILTERS.equals(psiClass.getQualifiedName())) {
             PsiType[] params = siteType.getParameters();
             if (params.length >= 1) {
                 return PsiUtil.resolveClassInType(params[0]);
             }
         }
-        for (PsiClassType st : psiClass.getSuperTypes()) {
-            PsiClass sc = st.resolve();
-            if (sc == null) {
-                continue;
-            }
-            String sq = sc.getQualifiedName();
-            if (FluentQueryMethods.FQ_REPOSITORY.equals(sq)
-                    || "org.springframework.data.jpa.repository.JpaRepository".equals(sq)
-                    || "org.springframework.data.jpa.repository.JpaSpecificationExecutor".equals(sq)) {
-                PsiType[] params = st.getParameters();
-                if (params.length >= 1) {
-                    return PsiUtil.resolveClassInType(params[0]);
-                }
-            }
-        }
         return null;
+    }
+
+    private static boolean isEntityTypeHost(@Nullable String qualifiedName) {
+        return FluentQueryMethods.FQ_REPOSITORY.equals(qualifiedName)
+                || FluentQueryMethods.FQ_PROPERTY_FILTERS.equals(qualifiedName)
+                || FluentQueryMethods.FQ_FLUENT_QUERY.equals(qualifiedName)
+                || "org.springframework.data.jpa.repository.JpaRepository".equals(qualifiedName)
+                || "org.springframework.data.jpa.repository.JpaSpecificationExecutor".equals(qualifiedName);
     }
 
     private static @Nullable String stringValue(@NotNull PsiExpression expression) {

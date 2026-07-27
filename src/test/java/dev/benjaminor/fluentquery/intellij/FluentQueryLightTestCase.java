@@ -37,15 +37,19 @@ public abstract class FluentQueryLightTestCase extends LightJavaCodeInsightFixtu
         myFixture.addClass("""
                 package dev.benjaminor.fluentquery;
                 import java.util.function.Consumer;
+                import java.util.Map;
                 public final class FluentQuery<T> {
                   public FluentQuery<T> where(String column, Object value) { return this; }
                   public FluentQuery<T> whereEqual(String column, Object value) { return this; }
                   public FluentQuery<T> whereColumn(String left, String right) { return this; }
                   public FluentQuery<T> orderByAsc(String... columns) { return this; }
+                  public FluentQuery<T> orderByDesc(String... columns) { return this; }
                   public FluentQuery<T> latest(String column) { return this; }
                   public FluentQuery<T> select(String... paths) { return this; }
                   public FluentQuery<T> fetch(String... associations) { return this; }
                   public FluentQuery<T> fetch(String association, Consumer<RelatedFilter> c) { return this; }
+                  public FluentQuery<T> fetch(Map<String, Consumer<RelatedFilter>> relations) { return this; }
+                  public FluentQuery<T> fetch(FetchRel... rels) { return this; }
                   public FluentQuery<T> whereHas(String relation) { return this; }
                   public FluentQuery<T> whereHas(String relation, Consumer<RelatedFilter> c) { return this; }
                   public FluentQuery<T> whereRelatedEqual(String relation, String column, Object value) { return this; }
@@ -64,13 +68,23 @@ public abstract class FluentQueryLightTestCase extends LightJavaCodeInsightFixtu
                 package dev.benjaminor.fluentquery;
                 import java.util.function.Consumer;
                 public final class FetchRel {
-                  public static FetchRel of(String path) { return new FetchRel(); }
-                  public static FetchRel of(String path, Consumer<RelatedFilter> c) { return new FetchRel(); }
+                  public FetchRel(String path, Consumer<RelatedFilter> constraints) {}
+                  public static FetchRel of(String path) { return new FetchRel(path, null); }
+                  public static FetchRel of(String path, Consumer<RelatedFilter> c) { return new FetchRel(path, c); }
                 }
                 """);
         myFixture.addClass("""
                 package dev.benjaminor.fluentquery;
-                public interface FluentQueryRepository<T, ID> {
+                public interface PropertyFilters<T> {
+                  default Object hasPropertyEqual(String column, Object value) { return null; }
+                  default Object hasRelatedPropertyEqual(String relation, String column, Object value) { return null; }
+                  default Object hasRelation(String relation) { return null; }
+                  default Object hasNoRelation(String relation) { return null; }
+                }
+                """);
+        myFixture.addClass("""
+                package dev.benjaminor.fluentquery;
+                public interface FluentQueryRepository<T, ID> extends PropertyFilters<T> {
                   default FluentQuery<T> query() { return FluentQuery.of(this); }
                 }
                 """);
@@ -113,8 +127,30 @@ public abstract class FluentQueryLightTestCase extends LightJavaCodeInsightFixtu
                 """);
         myFixture.addClass("""
                 package demo;
+                import jakarta.persistence.*;
+                @Entity
+                public class Account {
+                  private Long id;
+                  private String code;
+                  private Profile profile;
+                  public Long getId() { return id; }
+                  public String getCode() { return code; }
+                  @ManyToOne public Profile getProfile() { return profile; }
+                }
+                """);
+        myFixture.addClass("""
+                package demo;
+                import dev.benjaminor.fluentquery.FluentQueryRepository;
+                public interface BaseRepository<T, ID> extends FluentQueryRepository<T, ID> {}
+                """);
+        myFixture.addClass("""
+                package demo;
                 import dev.benjaminor.fluentquery.FluentQueryRepository;
                 public interface UserRepository extends FluentQueryRepository<User, Long> {}
+                """);
+        myFixture.addClass("""
+                package demo;
+                public interface AccountRepository extends BaseRepository<Account, Long> {}
                 """);
     }
 }

@@ -26,25 +26,25 @@ Token docs: [Publishing a Plugin](https://plugins.jetbrains.com/docs/intellij/pu
 In [`gradle.properties`](gradle.properties):
 
 ```properties
-pluginVersion=0.1.0
+pluginVersion = 0.1.1
 ```
 
 Commit that change on `main` (or the release branch). The tag must be `v` + that version
-(`v0.1.0` ↔ `pluginVersion=0.1.0`). The publish job refuses SNAPSHOT and tag mismatches.
+(`v0.1.1` ↔ `pluginVersion = 0.1.1`). The publish job refuses SNAPSHOT and tag mismatches.
 
 ### 2. Tag and push
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag -a v0.1.1 -m "Release 0.1.1"
+git push origin v0.1.1
 ```
 
 ### 3. Review the draft Release
 
-GitHub → **Releases** → open the draft for `v0.1.0`:
+GitHub → **Releases** → open the draft for `v0.1.1`:
 
 - Check release notes and the attached ZIP.
-- Click **Publish release** when ready.
+- Click **Publish release** when ready (only after JetBrains has approved the listing if this is the first upload).
 
 ### 4. Marketplace
 
@@ -54,7 +54,7 @@ After a green `publish-marketplace` job, the upload appears in your
 ## Local dry-run (optional)
 
 ```bash
-./gradlew buildPlugin
+./gradlew check verifyPlugin buildPlugin
 # ZIP → build/distributions/
 
 # Only with a real token in the environment:
@@ -65,5 +65,5 @@ export PUBLISH_TOKEN=...
 Or via Docker:
 
 ```bash
-docker compose run --rm buildPlugin
+docker compose run --rm gradle ./gradlew check verifyPlugin buildPlugin
 ```

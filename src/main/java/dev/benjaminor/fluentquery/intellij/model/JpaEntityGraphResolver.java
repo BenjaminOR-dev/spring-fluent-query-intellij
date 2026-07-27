@@ -3,10 +3,12 @@ package dev.benjaminor.fluentquery.intellij.model;
 import com.intellij.psi.PsiAnnotation;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiField;
+import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiModifier;
 import com.intellij.psi.PsiType;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
+import com.intellij.psi.util.PropertyUtilBase;
 import com.intellij.psi.util.PsiUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -17,7 +19,7 @@ import java.util.Set;
 
 /**
  * Builds a {@link JpaEntityGraph} from a {@link PsiClass} by reading fields and
- * Jakarta / Javax Persistence annotations (matched by simple or FQCN name).
+ * property getters with Jakarta / Javax Persistence annotations.
  *
  * <p>Results are cached on the {@link PsiClass} and invalidated when it changes.
  */
@@ -57,15 +59,38 @@ public final class JpaEntityGraphResolver {
             if (name == null || props.containsKey(name)) {
                 continue;
             }
-            JpaPropertyKind kind = kindOf(field);
-            PsiClass target = switch (kind) {
-                case ASSOCIATION_TO_ONE, EMBEDDED -> PsiUtil.resolveClassInType(field.getType());
-                case ASSOCIATION_TO_MANY -> collectionElementClass(field.getType());
-                case BASIC -> null;
-            };
-            props.put(name, new JpaProperty(name, kind, target, field));
+            props.put(name, propertyFrom(name, field.getType(), field.getAnnotations(), field));
+        }
+        // Property-access: mapping annotations on getters (do not invent props from every getX)
+        for (PsiMethod method : entityClass.getAllMethods()) {
+            if (!isPersistentGetter(method) || !hasMappingAnnotation(method.getAnnotations())) {
+                continue;
+            }
+            String name = PropertyUtilBase.getPropertyName(method);
+            if (name == null || props.containsKey(name)) {
+                continue;
+            }
+            PsiType returnType = method.getReturnType();
+            if (returnType == null) {
+                continue;
+            }
+            props.put(name, propertyFrom(name, returnType, method.getAnnotations(), method));
         }
         return new JpaEntityGraph(entityClass, props);
+    }
+
+    private static @NotNull JpaProperty propertyFrom(
+            @NotNull String name,
+            @NotNull PsiType type,
+            PsiAnnotation @NotNull [] annotations,
+            @NotNull com.intellij.psi.PsiElement navigation) {
+        JpaPropertyKind kind = kindOf(type, annotations);
+        PsiClass target = switch (kind) {
+            case ASSOCIATION_TO_ONE, EMBEDDED -> PsiUtil.resolveClassInType(type);
+            case ASSOCIATION_TO_MANY -> collectionElementClass(type);
+            case BASIC -> null;
+        };
+        return new JpaProperty(name, kind, target, navigation);
     }
 
     private static boolean isPersistentField(@NotNull PsiField field) {
@@ -77,17 +102,66 @@ public final class JpaEntityGraphResolver {
         if ("serialVersionUID".equals(name)) {
             return false;
         }
-        for (PsiAnnotation ann : field.getAnnotations()) {
-            String qn = ann.getQualifiedName();
-            if (qn != null && (TRANSIENT.contains(qn) || TRANSIENT.contains(shortName(qn)))) {
-                return false;
-            }
-        }
-        return true;
+        return !hasTransientAnnotation(field.getAnnotations());
     }
 
-    private static @NotNull JpaPropertyKind kindOf(@NotNull PsiField field) {
-        for (PsiAnnotation ann : field.getAnnotations()) {
+    private static final Set<String> MAPPING = Set.of(
+            "Id", "Column", "Basic", "Version", "EmbeddedId",
+            "ManyToOne", "OneToOne", "OneToMany", "ManyToMany", "Embedded",
+            "JoinColumn", "JoinTable", "Enumerated", "Temporal", "Lob",
+            "jakarta.persistence.Id", "jakarta.persistence.Column", "jakarta.persistence.Basic",
+            "jakarta.persistence.Version", "jakarta.persistence.EmbeddedId",
+            "jakarta.persistence.ManyToOne", "jakarta.persistence.OneToOne",
+            "jakarta.persistence.OneToMany", "jakarta.persistence.ManyToMany",
+            "jakarta.persistence.Embedded", "jakarta.persistence.JoinColumn",
+            "javax.persistence.Id", "javax.persistence.Column", "javax.persistence.Basic",
+            "javax.persistence.ManyToOne", "javax.persistence.OneToOne",
+            "javax.persistence.OneToMany", "javax.persistence.ManyToMany",
+            "javax.persistence.Embedded");
+
+    private static boolean hasMappingAnnotation(PsiAnnotation @NotNull [] annotations) {
+        for (PsiAnnotation ann : annotations) {
+            String qn = ann.getQualifiedName();
+            if (qn != null && (MAPPING.contains(qn) || MAPPING.contains(shortName(qn)))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isPersistentGetter(@NotNull PsiMethod method) {
+        if (method.isConstructor()
+                || method.hasModifierProperty(PsiModifier.STATIC)
+                || method.getParameterList().getParametersCount() != 0) {
+            return false;
+        }
+        PsiClass owner = method.getContainingClass();
+        if (owner != null && "java.lang.Object".equals(owner.getQualifiedName())) {
+            return false;
+        }
+        String name = method.getName();
+        if (name == null || !(name.startsWith("get") || name.startsWith("is"))) {
+            return false;
+        }
+        if (PropertyUtilBase.getPropertyName(method) == null) {
+            return false;
+        }
+        return !hasTransientAnnotation(method.getAnnotations());
+    }
+
+    private static boolean hasTransientAnnotation(PsiAnnotation @NotNull [] annotations) {
+        for (PsiAnnotation ann : annotations) {
+            String qn = ann.getQualifiedName();
+            if (qn != null && (TRANSIENT.contains(qn) || TRANSIENT.contains(shortName(qn)))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static @NotNull JpaPropertyKind kindOf(
+            @NotNull PsiType type, PsiAnnotation @NotNull [] annotations) {
+        for (PsiAnnotation ann : annotations) {
             String qn = ann.getQualifiedName();
             if (qn == null) {
                 continue;
@@ -102,15 +176,15 @@ public final class JpaEntityGraphResolver {
                 return JpaPropertyKind.EMBEDDED;
             }
         }
-        PsiClass type = PsiUtil.resolveClassInType(field.getType());
-        if (type != null && hasEntityAnnotation(type)) {
+        PsiClass resolved = PsiUtil.resolveClassInType(type);
+        if (resolved != null && hasEntityAnnotation(resolved)) {
             return JpaPropertyKind.ASSOCIATION_TO_ONE;
         }
-        PsiClass element = collectionElementClass(field.getType());
+        PsiClass element = collectionElementClass(type);
         if (element != null && hasEntityAnnotation(element)) {
             return JpaPropertyKind.ASSOCIATION_TO_MANY;
         }
-        if (type != null && hasEmbeddableAnnotation(type)) {
+        if (resolved != null && hasEmbeddableAnnotation(resolved)) {
             return JpaPropertyKind.EMBEDDED;
         }
         return JpaPropertyKind.BASIC;

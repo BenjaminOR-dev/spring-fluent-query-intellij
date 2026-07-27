@@ -56,7 +56,76 @@ public class FluentQueryInspectionAndReferenceTest extends FluentQueryLightTestC
                 """);
         List<HighlightInfo> infos = myFixture.doHighlighting(HighlightSeverity.ERROR);
         assertTrue(infos.stream().anyMatch(i ->
-                i.getDescription() != null && i.getDescription().contains("cannot contain dots")));
+                i.getDescription() != null && i.getDescription().contains("contains dots")));
+    }
+
+    public void testInspectionFlagsColonInFetch() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().fetch("profile:bio");
+                  }
+                }
+                """);
+        List<HighlightInfo> infos = myFixture.doHighlighting(HighlightSeverity.ERROR);
+        assertTrue(infos.stream().anyMatch(i ->
+                i.getDescription() != null && i.getDescription().contains("':'")));
+    }
+
+    public void testOrderByAllowsNestedProperty() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().orderByAsc("profile.bio");
+                  }
+                }
+                """);
+        List<HighlightInfo> infos = myFixture.doHighlighting(HighlightSeverity.ERROR);
+        assertTrue(infos.stream().noneMatch(i ->
+                i.getDescription() != null && i.getDescription().contains("profile")));
+    }
+
+    public void testMapOfFetchKey() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                import java.util.Map;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().fetch(Map.of("<caret>profile", f -> {}));
+                  }
+                }
+                """);
+        PsiReference ref = myFixture.getReferenceAtCaretPositionWithAssertion();
+        assertNotNull(ref.resolve());
+    }
+
+    public void testSelectShorthandColumnReference() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().select("profile:<caret>bio");
+                  }
+                }
+                """);
+        PsiReference ref = myFixture.getReferenceAtCaretPositionWithAssertion();
+        assertNotNull(ref.resolve());
+        assertEquals("bio", ((com.intellij.psi.PsiNamedElement) ref.resolve()).getName());
+    }
+
+    public void testPropertyFiltersHasProperty() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.hasPropertyEqual("<caret>email", "x");
+                  }
+                }
+                """);
+        PsiReference ref = myFixture.getReferenceAtCaretPositionWithAssertion();
+        assertNotNull(ref.resolve());
     }
 
     public void testPathReferenceResolvesToField() {
@@ -101,5 +170,45 @@ public class FluentQueryInspectionAndReferenceTest extends FluentQueryLightTestC
         assertNotNull("should resolve Book.pages", ref.resolve());
         assertInstanceOf(ref.resolve(), com.intellij.psi.PsiNamedElement.class);
         assertEquals("pages", ((com.intellij.psi.PsiNamedElement) ref.resolve()).getName());
+    }
+
+    public void testBaseRepositoryGenericHierarchy() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(AccountRepository repo) {
+                    repo.query().where("<caret>code", "x");
+                  }
+                }
+                """);
+        PsiReference ref = myFixture.getReferenceAtCaretPositionWithAssertion();
+        assertNotNull("should resolve Account.code via BaseRepository<Account>", ref.resolve());
+    }
+
+    public void testPropertyAccessGetterAssociation() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(AccountRepository repo) {
+                    repo.query().fetch("<caret>profile");
+                  }
+                }
+                """);
+        PsiReference ref = myFixture.getReferenceAtCaretPositionWithAssertion();
+        assertNotNull("should resolve getProfile() association", ref.resolve());
+    }
+
+    public void testMapOfEntriesKey() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                import java.util.Map;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().fetch(Map.ofEntries(Map.entry("<caret>profile", f -> {})));
+                  }
+                }
+                """);
+        PsiReference ref = myFixture.getReferenceAtCaretPositionWithAssertion();
+        assertNotNull(ref.resolve());
     }
 }
