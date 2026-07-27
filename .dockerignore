@@ -1,0 +1,10 @@
+.git
+.gradle
+build
+.intellijPlatform
+.idea
+*.iml
+out
+bin
+.kotlin
+*.log

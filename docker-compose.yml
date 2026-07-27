@@ -1,0 +1,38 @@
+services:
+  gradle:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ./:/app
+      - gradle-cache:/root/.gradle
+      - intellij-cache:/app/.intellijPlatform
+    working_dir: /app
+    environment:
+      GRADLE_USER_HOME: /root/.gradle
+      CI: "true"
+    # Default: compile + unit/fixture tests
+    command: ["./gradlew", "check", "--no-daemon"]
+
+  # Full packaging (ZIP in build/distributions/)
+  buildPlugin:
+    extends:
+      service: gradle
+    command: ["./gradlew", "buildPlugin", "--no-daemon"]
+
+  # Plugin Verifier against recommended IDEs (heavy download)
+  verify:
+    extends:
+      service: gradle
+    command: ["./gradlew", "verifyPlugin", "--no-daemon"]
+
+  # Interactive sandbox IDE (needs display / X11 on the host — optional)
+  runIde:
+    extends:
+      service: gradle
+    profiles: ["ui"]
+    command: ["./gradlew", "runIde", "--no-daemon"]
+
+volumes:
+  gradle-cache:
+  intellij-cache:

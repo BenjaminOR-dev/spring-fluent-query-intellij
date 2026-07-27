@@ -68,8 +68,8 @@ jobs:
           cache-read-only: true
 
       - name: Run Tests
-        run: ./gradlew test
-        # Integration tests (IDE sandbox) land in a later MVP iteration.
+        run: ./gradlew check
+        # Includes JUnit unit tests + LightJavaCodeInsightFixture IDE tests.
 
       - name: Collect Tests Result
         if: ${{ failure() }}

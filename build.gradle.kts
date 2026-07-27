@@ -1,8 +1,9 @@
 plugins {
     java
-    // version declared in settings.gradle.kts (platform.settings)
     id("org.jetbrains.intellij.platform")
 }
+
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 group = providers.gradleProperty("pluginGroup").get()
 version = providers.gradleProperty("pluginVersion").get()
@@ -19,8 +20,10 @@ dependencies {
         val platformVersion = providers.gradleProperty("platformVersion")
         create(platformType, platformVersion)
 
-        // Java PSI (entities, string literals, method calls)
         bundledPlugin("com.intellij.java")
+
+        testFramework(TestFrameworkType.Platform)
+        testFramework(TestFrameworkType.Plugin.Java)
     }
 }
 
@@ -38,6 +41,27 @@ intellijPlatform {
             name = "Benjamín Olvera R."
             url = "https://github.com/BenjaminOR-dev"
         }
+
+        description = """
+            <p>
+              IDE support for
+              <a href="https://github.com/BenjaminOR-dev/spring-fluent-query">spring-fluent-query</a>:
+              autocomplete, references, and inspections for entity fields, associations, and nested paths
+              in fluent query strings (<code>where</code>, <code>select</code>, <code>fetch</code>,
+              <code>whereHas</code>, …).
+            </p>
+            <p>
+              Reads JPA entities from the open project. Does not replace the Maven library.
+            </p>
+        """.trimIndent()
+
+        changeNotes = """
+            <ul>
+              <li>JPA entity graph from open project sources</li>
+              <li>Path references, autocomplete, and ERROR inspection</li>
+              <li>select shorthand (<code>assoc:col1,col2</code>)</li>
+            </ul>
+        """.trimIndent()
     }
 
     publishing {
@@ -56,8 +80,8 @@ tasks {
         gradleVersion = providers.gradleProperty("gradleVersion").get()
     }
 
-    // No tests yet; Plugin Verifier covers packaging. Add IDE sandbox tests in MVP.
-    test {
-        failOnNoDiscoveredTests = false
+    withType<Test> {
+        useJUnit()
+        maxHeapSize = "2g"
     }
 }

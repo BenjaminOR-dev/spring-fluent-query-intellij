@@ -26,3 +26,7 @@ Thumbs.db
 
 # IntelliJ Platform sandbox
 .intellijPlatform/
+
+# Docker named-volume leftovers (if ever bind-mounted locally)
+.docker-gradle/
+
