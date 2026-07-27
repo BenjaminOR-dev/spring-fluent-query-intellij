@@ -1,0 +1,31 @@
+<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+    <id>dev.benjaminor.fluentquery</id>
+    <name>Spring Fluent Query</name>
+    <vendor url="https://github.com/BenjaminOR-dev">Benjamín Olvera R.</vendor>
+
+    <description><![CDATA[
+    IDE support for <a href="https://github.com/BenjaminOR-dev/spring-fluent-query">spring-fluent-query</a>:
+    autocomplete and inspections for entity fields, associations, and nested paths in fluent query strings
+    (<code>where</code>, <code>select</code>, <code>fetch</code>, <code>whereHas</code>, …).
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Path references inside FluentQuery string arguments (MVP stub; wired next). -->
+        <psi.referenceContributor
+                language="JAVA"
+                implementation="dev.benjaminor.fluentquery.intellij.reference.FluentQueryPathReferenceContributor"/>
+
+        <localInspection
+                language="JAVA"
+                shortName="FluentQueryUnresolvedPath"
+                displayName="Unresolved FluentQuery path"
+                groupName="Spring Fluent Query"
+                enabledByDefault="true"
+                level="ERROR"
+                implementationClass="dev.benjaminor.fluentquery.intellij.inspection.FluentQueryUnresolvedPathInspection"/>
+    </extensions>
+</idea-plugin>

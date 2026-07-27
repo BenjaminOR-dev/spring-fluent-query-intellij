@@ -1,0 +1,28 @@
+# Maven / build (n/a) — Gradle
+.gradle/
+build/
+out/
+bin/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs / local
+*.log
+.kotlin/
+
+# IntelliJ Platform sandbox
+.intellijPlatform/
