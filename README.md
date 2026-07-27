@@ -26,7 +26,7 @@ Companion to:
 - Inspection: unresolved path → **ERROR**
 - JPA entity graph from the **open project** (fields + `@ManyToOne` / `@OneToMany` / …; no Fluent Query JAR at plugin runtime)
 
-> Status: **MVP** (`0.1.0-SNAPSHOT`). Install from source with `./gradlew buildPlugin` until Marketplace publish.
+> Version **0.1.0**. Install from JetBrains Marketplace when listed, or from source with `./gradlew buildPlugin`.
 
 ## Why use this plugin?
 
@@ -51,7 +51,6 @@ Fluent Query accepts paths as strings (`"email"`, `"profile.address"`, `"orders"
 - [Module architecture](#module-architecture)
 - [Development](#development)
 - [CI / publishing](#ci--publishing)
-- [Roadmap](#roadmap)
 - [License](#license)
 
 ## Requirements
@@ -151,17 +150,6 @@ First run downloads the IntelliJ Platform into named volumes (`gradle-cache`, `i
 | `release.yml` | Release **published** | `./gradlew publishPlugin` → JetBrains Marketplace |
 
 Required secret: `PUBLISH_TOKEN`. Full checklist: [PUBLISHING.md](PUBLISHING.md).
-
-## Roadmap
-
-- [x] Plugin scaffold (Gradle IntelliJ Platform 2.x)
-- [x] JPA entity graph (`model/`) from open project sources
-- [x] Path completion inside FluentQuery string literals
-- [x] Path references + ERROR inspection for unresolved paths
-- [x] IDE fixture tests (`LightJavaCodeInsightFixture`)
-- [x] Docker Compose for check / buildPlugin / verify
-- [x] Release flow: tag → draft → publish → Marketplace
-- [ ] First Marketplace release (`0.1.0`)
 
 ## License
 

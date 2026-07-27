@@ -26,7 +26,7 @@ Irmão de:
 - Inspeção: path não resolvido → **ERROR**
 - Grafo de entidades JPA do **projeto aberto** (campos + `@ManyToOne` / `@OneToMany` / …; sem JAR do Fluent Query no runtime do plugin)
 
-> Status: **MVP** (`0.1.0-SNAPSHOT`). Instale a partir do fonte com `./gradlew buildPlugin` até publicar no Marketplace.
+> Versão **0.1.0**. Instale pelo JetBrains Marketplace quando estiver listado, ou a partir do fonte com `./gradlew buildPlugin`.
 
 ## Por que usar este plugin?
 
@@ -51,7 +51,6 @@ Fluent Query aceita paths como strings (`"email"`, `"profile.address"`, `"orders
 - [Arquitetura do módulo](#arquitetura-do-módulo)
 - [Desenvolvimento](#desenvolvimento)
 - [CI / publicação](#ci--publicação)
-- [Roadmap](#roadmap)
 - [Licença](#licença)
 
 ## Requisitos
@@ -151,17 +150,6 @@ A primeira execução baixa a IntelliJ Platform em volumes (`gradle-cache`, `int
 | `release.yml` | Release **publicado** | `./gradlew publishPlugin` → JetBrains Marketplace |
 
 Segredo necessário: `PUBLISH_TOKEN`. Checklist: [PUBLISHING.md](PUBLISHING.md).
-
-## Roadmap
-
-- [x] Scaffold do plugin (Gradle IntelliJ Platform 2.x)
-- [x] Grafo de entidades JPA (`model/`) a partir das fontes do projeto aberto
-- [x] Completion de paths dentro de literais string do FluentQuery
-- [x] References de path + inspeção ERROR para paths não resolvidos
-- [x] Testes com fixture IDE (`LightJavaCodeInsightFixture`)
-- [x] Docker Compose para check / buildPlugin / verify
-- [x] Fluxo de release: tag → draft → publish → Marketplace
-- [ ] Primeiro release no Marketplace (`0.1.0`)
 
 ## Licença
 
