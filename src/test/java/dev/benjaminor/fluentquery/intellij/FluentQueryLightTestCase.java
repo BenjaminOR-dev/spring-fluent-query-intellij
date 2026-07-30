@@ -45,15 +45,33 @@ public abstract class FluentQueryLightTestCase extends LightJavaCodeInsightFixtu
                   public FluentQuery<T> orderByAsc(String... columns) { return this; }
                   public FluentQuery<T> orderByDesc(String... columns) { return this; }
                   public FluentQuery<T> latest(String column) { return this; }
+                  public FluentQuery<T> oldest(String column) { return this; }
                   public FluentQuery<T> select(String... paths) { return this; }
                   public FluentQuery<T> fetch(String... associations) { return this; }
                   public FluentQuery<T> fetch(String association, Consumer<RelatedFilter> c) { return this; }
                   public FluentQuery<T> fetch(Map<String, Consumer<RelatedFilter>> relations) { return this; }
                   public FluentQuery<T> fetch(FetchRel... rels) { return this; }
+                  public FluentQuery<T> fetchCollection(String... associations) { return this; }
+                  public FluentQuery<T> withCollection(String... associations) { return this; }
+                  public FluentQuery<T> limit(int max) { return this; }
                   public FluentQuery<T> whereHas(String relation) { return this; }
                   public FluentQuery<T> whereHas(String relation, Consumer<RelatedFilter> c) { return this; }
                   public FluentQuery<T> whereRelatedEqual(String relation, String column, Object value) { return this; }
                   public FluentQuery<T> whereRelation(String relation, String column, Object value) { return this; }
+                  public java.util.Optional first() { return java.util.Optional.empty(); }
+                  public java.util.Optional first(Class projectionType) { return java.util.Optional.empty(); }
+                  public Object firstOrFail() { return null; }
+                  public Object firstOrFail(Class projectionType) { return null; }
+                  public Object oneOrFail(Class projectionType) { return null; }
+                  public java.util.List get() { return java.util.List.of(); }
+                  public java.util.List get(Class projectionType) { return java.util.List.of(); }
+                  public Object page(Object pageable) { return null; }
+                  public Object page(Object pageable, Class projectionType) { return null; }
+                  public Object paginate(int page, int size) { return null; }
+                  public Object slice(Object pageable) { return null; }
+                  public java.util.Optional latest(String column, Class projectionType) { return java.util.Optional.empty(); }
+                  /** @deprecated */ public java.util.Optional firstAs(Class projectionType) { return first(projectionType); }
+                  /** @deprecated */ public Object pageAs(Class projectionType, Object pageable) { return page(pageable, projectionType); }
                   public static <T> FluentQuery<T> of(Object executor) { return new FluentQuery<>(); }
                 }
                 """);

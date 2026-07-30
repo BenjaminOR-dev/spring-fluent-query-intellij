@@ -52,7 +52,55 @@ public final class FluentQueryMethods {
     /** Spring Data property paths (dots OK, leaf must be scalar). */
     private static final Set<String> PROPERTY_PATH_METHODS = Set.of(
             "orderByAsc", "orderByDesc",
-            "latest", "latestOrNull", "oldest", "oldestOrNull"
+            "latest", "latestOrNull", "latestOrFail", "oldest", "oldestOrNull", "oldestOrFail",
+            // deprecated *As aliases
+            "latestAs", "latestAsOrFail", "latestAsOrNull",
+            "oldestAs", "oldestAsOrFail", "oldestAsOrNull"
+    );
+
+    /**
+     * Deprecated {@code *As} terminals — always projections.
+     */
+    private static final Set<String> PROJECTION_AS_TERMINALS = Set.of(
+            "firstAs", "firstAsOrFail", "firstAsOrNull",
+            "oneAs", "oneAsOrFail", "oneAsOrNull",
+            "latestAs", "latestAsOrFail", "latestAsOrNull",
+            "oldestAs", "oldestAsOrFail", "oldestAsOrNull",
+            "getAs", "pageAs", "paginateAs", "sliceAs"
+    );
+
+    /**
+     * Terminals that become projections when a {@code Class} argument is present
+     * ({@code first(Class)}, {@code page(pageable, Class)}, …).
+     */
+    private static final Set<String> PROJECTION_CLASS_OVERLOADS = Set.of(
+            "first", "firstOrFail", "firstOrNull",
+            "one", "oneOrFail", "oneOrNull",
+            "latest", "latestOrFail", "latestOrNull",
+            "oldest", "oldestOrFail", "oldestOrNull",
+            "get", "page", "paginate", "slice"
+    );
+
+    private static final Set<String> FETCH_CHAIN_METHODS = Set.of(
+            "fetch", "with", "fetchCollection", "withCollection"
+    );
+
+    private static final Set<String> FETCH_COLLECTION_METHODS = Set.of(
+            "fetchCollection", "withCollection"
+    );
+
+    /** Runtime-incompatible with fetchCollection (cartesian / LIMIT on join product). */
+    private static final Set<String> COLLECTION_FETCH_INCOMPATIBLE = Set.of(
+            "page", "slice", "paginate", "chunk", "limit"
+    );
+
+    /** Entity terminals that ignore select column trimming (soft hint when select is present). */
+    private static final Set<String> ENTITY_RESULT_TERMINALS = Set.of(
+            "first", "firstOrFail", "firstOrNull",
+            "one", "oneOrFail", "oneOrNull",
+            "latest", "latestOrNull",
+            "oldest", "oldestOrNull",
+            "get", "page", "paginate", "slice", "stream"
     );
 
     private static final Set<String> ASSOCIATION_METHODS = Set.of(
@@ -93,7 +141,95 @@ public final class FluentQueryMethods {
                 || ASSOCIATION_METHODS.contains(name)
                 || ASSOCIATION_SINGLE_METHODS.contains(name)
                 || RELATION_THEN_ATTRIBUTE.contains(name)
-                || SELECT_METHODS.contains(name);
+                || SELECT_METHODS.contains(name)
+                || PROJECTION_AS_TERMINALS.contains(name)
+                || PROJECTION_CLASS_OVERLOADS.contains(name)
+                || COLLECTION_FETCH_INCOMPATIBLE.contains(name)
+                || "stream".equals(name)
+                || "exists".equals(name)
+                || "count".equals(name)
+                || "delete".equals(name);
+    }
+
+    /** Deprecated {@code *As} name, or any Class-overload terminal name (entity or projection). */
+    public static boolean isProjectionTerminalName(@NotNull String name) {
+        return PROJECTION_AS_TERMINALS.contains(name) || PROJECTION_CLASS_OVERLOADS.contains(name);
+    }
+
+    public static boolean isDeprecatedAsTerminal(@NotNull String name) {
+        return PROJECTION_AS_TERMINALS.contains(name);
+    }
+
+    public static boolean isFetchCollectionMethod(@NotNull String name) {
+        return FETCH_COLLECTION_METHODS.contains(name);
+    }
+
+    public static boolean isCollectionFetchIncompatible(@NotNull String name) {
+        return COLLECTION_FETCH_INCOMPATIBLE.contains(name);
+    }
+
+    /**
+     * Entity-result terminal (no projection Class): soft-warn when combined with {@code select}.
+     */
+    public static boolean isEntityResultTerminalCall(@NotNull String name, int argCount) {
+        if (!ENTITY_RESULT_TERMINALS.contains(name)) {
+            return false;
+        }
+        return !isProjectionTerminalCall(name, argCount);
+    }
+
+    /**
+     * Preferred replacement name for a deprecated {@code *As} terminal, or {@code null}.
+     */
+    public static @Nullable String preferredNameForDeprecatedAs(@NotNull String asName) {
+        if (!PROJECTION_AS_TERMINALS.contains(asName)) {
+            return null;
+        }
+        if (asName.endsWith("AsOrFail")) {
+            return asName.substring(0, asName.length() - "AsOrFail".length()) + "OrFail";
+        }
+        if (asName.endsWith("AsOrNull")) {
+            return asName.substring(0, asName.length() - "AsOrNull".length()) + "OrNull";
+        }
+        if (asName.endsWith("As")) {
+            return asName.substring(0, asName.length() - 2);
+        }
+        return null;
+    }
+
+    /** {@code true} when migrating {@code *As} requires swapping Class to the last argument. */
+    public static boolean deprecatedAsNeedsArgReorder(@NotNull String asName) {
+        return "pageAs".equals(asName) || "paginateAs".equals(asName) || "sliceAs".equals(asName);
+    }
+
+    /**
+     * Whether this call is a projection terminal given argument count
+     * (Class overloads need the extra {@code Class} arg; {@code *As} always count).
+     */
+    public static boolean isProjectionTerminalCall(@NotNull String name, int argCount) {
+        if (PROJECTION_AS_TERMINALS.contains(name)) {
+            return true;
+        }
+        if (!PROJECTION_CLASS_OVERLOADS.contains(name)) {
+            return false;
+        }
+        return switch (name) {
+            case "page", "slice" -> argCount >= 2;
+            case "paginate" -> argCount >= 3;
+            case "latest", "latestOrFail", "latestOrNull",
+                 "oldest", "oldestOrFail", "oldestOrNull" -> argCount >= 2;
+            default -> argCount >= 1; // first/one/get (+ OrFail/OrNull)
+        };
+    }
+
+    /** @deprecated prefer {@link #isProjectionTerminalCall(String, int)} */
+    @Deprecated
+    public static boolean isProjectionTerminal(@NotNull String name) {
+        return isProjectionTerminalName(name);
+    }
+
+    public static boolean isFetchChainMethod(@NotNull String name) {
+        return FETCH_CHAIN_METHODS.contains(name);
     }
 
     public static boolean isAssociationMethodName(@NotNull String name) {
@@ -159,7 +295,14 @@ public final class FluentQueryMethods {
             return argIndex == 1 ? FluentQueryPathRole.ATTRIBUTE : null;
         }
         if (PROPERTY_PATH_METHODS.contains(methodName)) {
+            // latest/oldest(+As) with Class: only the sort column (arg 0) is a path
+            if (methodName.startsWith("latest") || methodName.startsWith("oldest")) {
+                return argIndex == 0 ? FluentQueryPathRole.PROPERTY_PATH : null;
+            }
             return FluentQueryPathRole.PROPERTY_PATH;
+        }
+        if (PROJECTION_AS_TERMINALS.contains(methodName)) {
+            return null;
         }
         if (ATTRIBUTE_METHODS.contains(methodName)) {
             return argIndex == 0 ? FluentQueryPathRole.ATTRIBUTE : null;

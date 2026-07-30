@@ -33,5 +33,41 @@
                 enabledByDefault="true"
                 level="ERROR"
                 implementationClass="dev.benjaminor.fluentquery.intellij.inspection.FluentQueryUnresolvedPathInspection"/>
+
+        <localInspection
+                language="JAVA"
+                shortName="FluentQueryFetchWithProjection"
+                key="inspection.fetch.with.projection.display.name"
+                groupKey="inspection.group.name"
+                enabledByDefault="true"
+                level="ERROR"
+                implementationClass="dev.benjaminor.fluentquery.intellij.inspection.FluentQueryFetchWithProjectionInspection"/>
+
+        <localInspection
+                language="JAVA"
+                shortName="FluentQueryFetchCollectionWithPagination"
+                key="inspection.fetch.collection.pagination.display.name"
+                groupKey="inspection.group.name"
+                enabledByDefault="true"
+                level="ERROR"
+                implementationClass="dev.benjaminor.fluentquery.intellij.inspection.FluentQueryFetchCollectionWithPaginationInspection"/>
+
+        <localInspection
+                language="JAVA"
+                shortName="FluentQueryDeprecatedAs"
+                key="inspection.deprecated.as.display.name"
+                groupKey="inspection.group.name"
+                enabledByDefault="true"
+                level="WARNING"
+                implementationClass="dev.benjaminor.fluentquery.intellij.inspection.FluentQueryDeprecatedAsInspection"/>
+
+        <localInspection
+                language="JAVA"
+                shortName="FluentQuerySelectWithoutProjection"
+                key="inspection.select.without.projection.display.name"
+                groupKey="inspection.group.name"
+                enabledByDefault="true"
+                level="WEAK WARNING"
+                implementationClass="dev.benjaminor.fluentquery.intellij.inspection.FluentQuerySelectWithoutProjectionInspection"/>
     </extensions>
 </idea-plugin>

@@ -23,10 +23,12 @@ Companion to:
 
 - Path references inside FluentQuery string literals (Ctrl/Cmd-click → field)
 - Autocomplete for entity attributes and associations (nested paths)
-- Inspection: unresolved path → **ERROR**
+- Path validation for **inline literals** and **`static final String`** constants
+- Inspections: unresolved path; `fetch`+projection; `fetchCollection`+pagination; deprecated `*As`; soft `select` without Class
+- Quick fixes: remove fetch*/fetchCollection; migrate `*As` → Class overloads
 - JPA entity graph from the **open project** (fields + `@ManyToOne` / `@OneToMany` / …; no Fluent Query JAR at plugin runtime)
 
-> Current version: **0.1.2** · [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33175-spring-fluent-query) · build from source with `./gradlew buildPlugin`
+> Current version: **0.1.3** · [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33175-spring-fluent-query) · build from source with `./gradlew buildPlugin`
 
 ## Why use this plugin?
 
@@ -101,7 +103,7 @@ Open a project that depends on spring-fluent-query and has JPA `@Entity` classes
 
 Key rules: `where("a.b")` → error (use `whereRelated*` / `whereHas`); `fetch("rel:cols")` → error (use `select`); association name in `where` → error.
 
-Out of scope: rewriting queries, running SQL, non-literal strings, Kotlin.
+Out of scope: rewriting queries, running SQL, non-constant variables, Kotlin.
 
 ## Module architecture
 
@@ -111,7 +113,8 @@ spring-fluent-query-intellij/
     ├── model/         # JPA entity graph + call-site / path resolve
     ├── reference/     # PsiReferenceContributor (paths in string literals)
     ├── completion/    # Path autocomplete inside those literals
-    └── inspection/    # LocalInspectionTool (unresolved path → ERROR)
+    ├── inspection/    # paths, fetch traps, *As deprecation
+    └── quickfix/     # Remove fetch*, migrate *As
 ```
 
 | Piece | Role |
@@ -120,7 +123,9 @@ spring-fluent-query-intellij/
 | `FluentQueryCallAnalyzer` | Detect FluentQuery / RelatedFilter call sites and root entity `T` |
 | `FluentQueryPathReferenceContributor` | Attach references to path string arguments |
 | `FluentQueryPathCompletionContributor` | Autocomplete attributes / associations |
-| `FluentQueryUnresolvedPathInspection` | Report paths that do not exist on the entity graph |
+| `FluentQueryUnresolvedPathInspection` | Invalid paths (literals + `static final String`) |
+| Fetch / pagination / `*As` / select inspections | Runtime traps + deprecation + soft select hint |
+| Quick fixes | Remove fetch*/fetchCollection; migrate `*As` |
 
 Versioned **independently** from `spring-fluent-query` (Maven). Same public path conventions; no runtime dependency on the library JAR.
 

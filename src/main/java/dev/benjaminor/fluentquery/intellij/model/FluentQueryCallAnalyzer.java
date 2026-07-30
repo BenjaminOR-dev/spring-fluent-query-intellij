@@ -5,10 +5,12 @@ import com.intellij.psi.PsiClassType;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiExpression;
 import com.intellij.psi.PsiExpressionList;
+import com.intellij.psi.PsiField;
 import com.intellij.psi.PsiJavaCodeReferenceElement;
 import com.intellij.psi.PsiLiteralExpression;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiMethodCallExpression;
+import com.intellij.psi.PsiModifier;
 import com.intellij.psi.PsiNewExpression;
 import com.intellij.psi.PsiParameter;
 import com.intellij.psi.PsiReferenceExpression;
@@ -28,13 +30,24 @@ public final class FluentQueryCallAnalyzer {
     }
 
     public static @Nullable FluentQueryCallSite analyze(@NotNull PsiLiteralExpression literal) {
-        Object value = literal.getValue();
-        if (!(value instanceof String pathText)) {
+        return analyzePathExpression(literal);
+    }
+
+    /**
+     * Analyzes a FluentQuery path argument: inline string literal or {@code static final String}
+     * constant reference whose initializer is a string literal.
+     */
+    public static @Nullable FluentQueryCallSite analyzePathExpression(@NotNull PsiExpression pathExpression) {
+        String pathText = stringValue(pathExpression);
+        if (pathText == null) {
             return null;
         }
         pathText = PathStrings.stripCompletionDummy(pathText);
 
-        PsiExpressionList argList = PsiTreeUtil.getParentOfType(literal, PsiExpressionList.class, true);
+        PsiLiteralExpression literal =
+                pathExpression instanceof PsiLiteralExpression lit ? lit : null;
+
+        PsiExpressionList argList = PsiTreeUtil.getParentOfType(pathExpression, PsiExpressionList.class, true);
         if (argList == null) {
             return null;
         }
@@ -42,6 +55,9 @@ public final class FluentQueryCallAnalyzer {
 
         // new FetchRel("path", …)
         if (parent instanceof PsiNewExpression newExpr) {
+            if (literal == null) {
+                return null; // constructor path must be literal for FetchRel today
+            }
             return analyzeFetchRelConstructor(literal, pathText, argList, newExpr);
         }
 
@@ -49,13 +65,16 @@ public final class FluentQueryCallAnalyzer {
             return null;
         }
 
-        int argIndex = indexOf(argList.getExpressions(), literal);
+        int argIndex = indexOf(argList.getExpressions(), pathExpression);
         if (argIndex < 0) {
             return null;
         }
 
         // fetch(Map.of(...)) / Map.ofEntries(Map.entry(...)) — key is not a direct fetch arg
         if (isMapFactoryCall(call) || isMapEntryCall(call)) {
+            if (literal == null) {
+                return null;
+            }
             return analyzeMapKeyLiteral(literal, pathText, call, argIndex);
         }
 
@@ -92,7 +111,7 @@ public final class FluentQueryCallAnalyzer {
             return null;
         }
 
-        return new FluentQueryCallSite(literal, call, role, entity, pathText, methodName);
+        return new FluentQueryCallSite(pathExpression, literal, call, role, entity, pathText, methodName);
     }
 
     private static @Nullable FluentQueryCallSite analyzeFetchRelConstructor(
@@ -191,9 +210,9 @@ public final class FluentQueryCallAnalyzer {
         return parent != null && isMapFactoryCall(parent);
     }
 
-    private static int indexOf(PsiExpression @NotNull [] expressions, @NotNull PsiLiteralExpression literal) {
+    private static int indexOf(PsiExpression @NotNull [] expressions, @NotNull PsiExpression expression) {
         for (int i = 0; i < expressions.length; i++) {
-            if (expressions[i] == literal) {
+            if (expressions[i] == expression) {
                 return i;
             }
         }
@@ -490,9 +509,24 @@ public final class FluentQueryCallAnalyzer {
                 || "org.springframework.data.jpa.repository.JpaSpecificationExecutor".equals(qualifiedName);
     }
 
+    /** Public for sibling-arg duplicate detection (literals + static final String). */
+    public static @Nullable String publicStringValue(@NotNull PsiExpression expression) {
+        return stringValue(expression);
+    }
+
     private static @Nullable String stringValue(@NotNull PsiExpression expression) {
         if (expression instanceof PsiLiteralExpression lit && lit.getValue() instanceof String s) {
             return PathStrings.stripCompletionDummy(s);
+        }
+        if (expression instanceof PsiReferenceExpression ref) {
+            PsiElement resolved = ref.resolve();
+            if (resolved instanceof PsiField field
+                    && field.hasModifierProperty(PsiModifier.STATIC)
+                    && field.hasModifierProperty(PsiModifier.FINAL)
+                    && field.getInitializer() instanceof PsiLiteralExpression init
+                    && init.getValue() instanceof String s) {
+                return PathStrings.stripCompletionDummy(s);
+            }
         }
         return null;
     }

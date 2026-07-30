@@ -1,6 +1,7 @@
 package dev.benjaminor.fluentquery.intellij.model;
 
 import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiExpression;
 import com.intellij.psi.PsiLiteralExpression;
 import com.intellij.psi.PsiMethodCallExpression;
 import org.jetbrains.annotations.NotNull;
@@ -11,7 +12,8 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class FluentQueryCallSite {
 
-    private final @NotNull PsiLiteralExpression literal;
+    private final @NotNull PsiExpression pathExpression;
+    private final @Nullable PsiLiteralExpression literal;
     private final @NotNull PsiMethodCallExpression call;
     private final @NotNull FluentQueryPathRole role;
     private final @NotNull PsiClass entityType;
@@ -25,6 +27,18 @@ public final class FluentQueryCallSite {
             @NotNull PsiClass entityType,
             @NotNull String pathText,
             @NotNull String methodName) {
+        this(literal, literal, call, role, entityType, pathText, methodName);
+    }
+
+    public FluentQueryCallSite(
+            @NotNull PsiExpression pathExpression,
+            @Nullable PsiLiteralExpression literal,
+            @NotNull PsiMethodCallExpression call,
+            @NotNull FluentQueryPathRole role,
+            @NotNull PsiClass entityType,
+            @NotNull String pathText,
+            @NotNull String methodName) {
+        this.pathExpression = pathExpression;
         this.literal = literal;
         this.call = call;
         this.role = role;
@@ -33,8 +47,21 @@ public final class FluentQueryCallSite {
         this.methodName = methodName;
     }
 
-    public @NotNull PsiLiteralExpression literal() {
+    /** Path argument expression (string literal or constant reference). */
+    public @NotNull PsiExpression pathExpression() {
+        return pathExpression;
+    }
+
+    /**
+     * String literal when the path is an inline literal; {@code null} for
+     * {@code static final String} constant references.
+     */
+    public @Nullable PsiLiteralExpression literal() {
         return literal;
+    }
+
+    public boolean isInlineLiteral() {
+        return literal != null;
     }
 
     public @NotNull PsiMethodCallExpression call() {

@@ -17,7 +17,134 @@ public class FluentQueryInspectionAndReferenceTest extends FluentQueryLightTestC
     @Override
     protected void setUp() throws Exception {
         super.setUp();
-        myFixture.enableInspections(FluentQueryUnresolvedPathInspection.class);
+        myFixture.enableInspections(
+                FluentQueryUnresolvedPathInspection.class,
+                FluentQueryFetchWithProjectionInspection.class,
+                FluentQueryFetchCollectionWithPaginationInspection.class,
+                FluentQueryDeprecatedAsInspection.class,
+                FluentQuerySelectWithoutProjectionInspection.class);
+    }
+
+    public void testInspectionFlagsFetchWithFirstClass() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().fetch("profile").select("id", "email").first(Object.class);
+                  }
+                }
+                """);
+        List<HighlightInfo> infos = myFixture.doHighlighting(HighlightSeverity.ERROR);
+        assertTrue(infos.stream().anyMatch(i ->
+                i.getDescription() != null
+                        && i.getDescription().contains("fetch()")
+                        && i.getDescription().contains("first")));
+    }
+
+    public void testInspectionSilentOnEntityFirstWithFetch() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().fetch("profile").first();
+                  }
+                }
+                """);
+        List<HighlightInfo> infos = myFixture.doHighlighting(HighlightSeverity.ERROR);
+        assertTrue(infos.stream().noneMatch(i ->
+                i.getDescription() != null && i.getDescription().contains("cannot be combined")));
+    }
+
+    public void testInspectionSilentOnSelectFirstClassWithoutFetch() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().select("id", "email").first(Object.class);
+                  }
+                }
+                """);
+        List<HighlightInfo> infos = myFixture.doHighlighting(HighlightSeverity.ERROR);
+        assertTrue(infos.stream().noneMatch(i ->
+                i.getDescription() != null && i.getDescription().contains("cannot be combined")));
+    }
+
+    public void testFetchCollectionWithPageIsError() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().fetchCollection("books").page(null);
+                  }
+                }
+                """);
+        List<HighlightInfo> infos = myFixture.doHighlighting(HighlightSeverity.ERROR);
+        assertTrue(infos.stream().anyMatch(i ->
+                i.getDescription() != null
+                        && i.getDescription().contains("fetchCollection")
+                        && i.getDescription().contains("page")));
+    }
+
+    public void testDeprecatedAsIsWarning() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().select("id", "email").firstAs(Object.class);
+                  }
+                }
+                """);
+        List<HighlightInfo> infos = myFixture.doHighlighting(HighlightSeverity.WARNING);
+        assertTrue(infos.stream().anyMatch(i ->
+                i.getDescription() != null
+                        && i.getDescription().contains("firstAs")
+                        && i.getDescription().contains("deprecated")));
+    }
+
+    public void testSelectWithoutProjectionIsWeakWarning() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  void run(UserRepository repo) {
+                    repo.query().select("id", "email").first();
+                  }
+                }
+                """);
+        List<HighlightInfo> infos = myFixture.doHighlighting(HighlightSeverity.WEAK_WARNING);
+        assertTrue(infos.stream().anyMatch(i ->
+                i.getDescription() != null
+                        && i.getDescription().contains("select")
+                        && i.getDescription().contains("partial entity")));
+    }
+
+    public void testStaticFinalStringConstantPathIsValidated() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  static final String BAD = "noSuchField";
+                  void run(UserRepository repo) {
+                    repo.query().where(BAD, "x");
+                  }
+                }
+                """);
+        List<HighlightInfo> infos = myFixture.doHighlighting(HighlightSeverity.ERROR);
+        assertTrue(infos.stream().anyMatch(i ->
+                i.getDescription() != null && i.getDescription().contains("noSuchField")));
+    }
+
+    public void testStaticFinalStringConstantValidPathSilent() {
+        myFixture.configureByText("Use.java", """
+                import demo.*;
+                class Use {
+                  static final String EMAIL = "email";
+                  void run(UserRepository repo) {
+                    repo.query().where(EMAIL, "x");
+                  }
+                }
+                """);
+        List<HighlightInfo> infos = myFixture.doHighlighting(HighlightSeverity.ERROR);
+        assertTrue(infos.stream().noneMatch(i ->
+                i.getDescription() != null && i.getDescription().contains("email")));
     }
 
     public void testInspectionHighlightsUnknownWherePath() {

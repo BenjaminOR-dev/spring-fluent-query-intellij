@@ -34,6 +34,22 @@ public class FluentQueryMethodsTest {
         assertEquals(
                 FluentQueryPathRole.PROPERTY_PATH,
                 FluentQueryMethods.roleFor("latest", FluentQueryMethods.FQ_FLUENT_QUERY, 0, 1));
+        assertEquals(
+                FluentQueryPathRole.PROPERTY_PATH,
+                FluentQueryMethods.roleFor("latest", FluentQueryMethods.FQ_FLUENT_QUERY, 0, 2));
+        assertNull(FluentQueryMethods.roleFor("latest", FluentQueryMethods.FQ_FLUENT_QUERY, 1, 2));
+        assertTrue(FluentQueryMethods.isProjectionTerminalCall("oneOrFail", 1));
+        assertFalse(FluentQueryMethods.isProjectionTerminalCall("first", 0));
+        assertTrue(FluentQueryMethods.isProjectionTerminalCall("first", 1));
+        assertTrue(FluentQueryMethods.isProjectionTerminalCall("firstAs", 1));
+        assertTrue(FluentQueryMethods.isFetchChainMethod("withCollection"));
+        assertEquals("first", FluentQueryMethods.preferredNameForDeprecatedAs("firstAs"));
+        assertEquals("firstOrFail", FluentQueryMethods.preferredNameForDeprecatedAs("firstAsOrFail"));
+        assertEquals("page", FluentQueryMethods.preferredNameForDeprecatedAs("pageAs"));
+        assertTrue(FluentQueryMethods.deprecatedAsNeedsArgReorder("pageAs"));
+        assertTrue(FluentQueryMethods.isCollectionFetchIncompatible("paginate"));
+        assertTrue(FluentQueryMethods.isEntityResultTerminalCall("first", 0));
+        assertFalse(FluentQueryMethods.isEntityResultTerminalCall("first", 1));
     }
 
     @Test

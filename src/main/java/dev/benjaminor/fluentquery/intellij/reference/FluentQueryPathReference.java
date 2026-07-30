@@ -61,6 +61,10 @@ public final class FluentQueryPathReference extends PsiReferenceBase<PsiLiteralE
 
     public static FluentQueryPathReference @NotNull [] forCallSite(@NotNull FluentQueryCallSite site) {
         PsiLiteralExpression literal = site.literal();
+        if (literal == null) {
+            // Constant references: Ctrl+click already goes to the field; no in-string segments.
+            return new FluentQueryPathReference[0];
+        }
         String raw = site.pathText();
         int contentStart = contentStartOffset(literal);
         List<FluentQueryPathReference> refs = new ArrayList<>();

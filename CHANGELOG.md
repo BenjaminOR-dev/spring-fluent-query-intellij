@@ -5,6 +5,22 @@ Changelog
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-07-30
+
+### Added
+
+- ERROR inspection: `fetch` / `with*` + projection terminals (`first(Class)`, … and deprecated `*As`)
+- ERROR inspection: `fetchCollection` / `withCollection` + `page` / `slice` / `paginate` / `chunk` / `limit`
+- WARNING inspection: deprecated `*As` with quick fix → Class overloads (Class last for `page`/`paginate`/`slice`)
+- WEAK WARNING: `select(...)` + entity terminal without projection Class
+- Path validation for `static final String` constants used as path arguments
+- Quick fixes: remove `fetch`/`with*` from chain; remove `fetchCollection`/`withCollection`
+- Path roles for `latest*` / `oldest*` sort column arguments (including Class overloads)
+
+### Changed
+
+- Aligned with spring-fluent-query **0.2.1**: Class overloads on shared terminal names; fetch+projection inspection uses argument count so entity `first()` is not flagged
+
 ## [0.1.2] — 2026-07-27
 
 ### Fixed

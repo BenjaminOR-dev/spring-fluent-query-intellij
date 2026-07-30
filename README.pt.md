@@ -26,7 +26,7 @@ Irmão de:
 - Inspeção: path não resolvido → **ERROR**
 - Grafo de entidades JPA do **projeto aberto** (campos + `@ManyToOne` / `@OneToMany` / …; sem JAR do Fluent Query no runtime do plugin)
 
-> Versão atual: **0.1.2** · [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33175-spring-fluent-query) · build a partir do fonte com `./gradlew buildPlugin`
+> Versão atual: **0.1.3** · [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/33175-spring-fluent-query) · build a partir do fonte com `./gradlew buildPlugin`
 
 ## Por que usar este plugin?
 
@@ -111,7 +111,8 @@ spring-fluent-query-intellij/
     ├── model/         # Grafo JPA + resolve de call-site / paths
     ├── reference/     # PsiReferenceContributor (paths em literais string)
     ├── completion/    # Autocomplete de paths dentro desses literais
-    └── inspection/    # LocalInspectionTool (path não resolvido → ERROR)
+    ├── inspection/    # paths, traps fetch, *As deprecado
+    └── quickfix/     # Remover fetch*, migrar *As
 ```
 
 | Peça | Papel |

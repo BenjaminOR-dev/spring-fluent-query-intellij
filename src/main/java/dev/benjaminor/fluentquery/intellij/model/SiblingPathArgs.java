@@ -43,20 +43,21 @@ public final class SiblingPathArgs {
         PsiMethodCallExpression call = site.call();
         PsiExpression[] args = call.getArgumentList().getExpressions();
         for (PsiExpression arg : args) {
-            if (!(arg instanceof PsiLiteralExpression lit) || lit == site.literal()) {
+            if (arg == site.pathExpression()) {
                 continue;
             }
-            if (!(lit.getValue() instanceof String raw)) {
+            String path = FluentQueryCallAnalyzer.publicStringValue(arg);
+            if (path == null) {
                 continue;
             }
-            String path = PathStrings.stripCompletionDummy(raw).trim();
+            path = PathStrings.stripCompletionDummy(path).trim();
             if (path.isEmpty()) {
                 continue;
             }
             FluentQueryPathRole role = FluentQueryMethods.roleFor(
                     site.methodName(),
                     FluentQueryMethods.FQ_FLUENT_QUERY,
-                    indexOf(args, lit),
+                    indexOf(args, arg),
                     args.length);
             if (role == site.role()) {
                 out.add(path);
@@ -151,17 +152,15 @@ public final class SiblingPathArgs {
         PsiExpression[] args = call.getArgumentList().getExpressions();
         Set<String> seen = new HashSet<>();
         for (PsiExpression arg : args) {
-            if (!(arg instanceof PsiLiteralExpression lit)) {
+            String siblingPath = FluentQueryCallAnalyzer.publicStringValue(arg);
+            if (siblingPath == null) {
                 continue;
             }
-            if (!(lit.getValue() instanceof String raw)) {
-                continue;
-            }
-            String siblingPath = PathStrings.stripCompletionDummy(raw).trim();
+            siblingPath = PathStrings.stripCompletionDummy(siblingPath).trim();
             if (siblingPath.isEmpty()) {
                 continue;
             }
-            int idx = indexOf(args, lit);
+            int idx = indexOf(args, arg);
             FluentQueryPathRole role = FluentQueryMethods.roleFor(
                     site.methodName(), FluentQueryMethods.FQ_FLUENT_QUERY, idx, args.length);
             if (role != site.role()) {
@@ -169,7 +168,7 @@ public final class SiblingPathArgs {
             }
             for (String key : canonicalKeys(role, siblingPath)) {
                 if (!seen.add(key)) {
-                    if (lit == site.literal()) {
+                    if (arg == site.pathExpression()) {
                         issues.add(PathValidator.Issue.of(
                                 path, 0, path.length(),
                                 "inspection.unresolved.path.duplicate",
@@ -199,9 +198,9 @@ public final class SiblingPathArgs {
         return path.trim().toLowerCase(Locale.ROOT);
     }
 
-    private static int indexOf(PsiExpression @NotNull [] expressions, @NotNull PsiLiteralExpression literal) {
+    private static int indexOf(PsiExpression @NotNull [] expressions, @NotNull PsiExpression expression) {
         for (int i = 0; i < expressions.length; i++) {
-            if (expressions[i] == literal) {
+            if (expressions[i] == expression) {
                 return i;
             }
         }
