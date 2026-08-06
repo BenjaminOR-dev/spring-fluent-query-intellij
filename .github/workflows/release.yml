@@ -38,7 +38,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build plugin ZIP
-        run: ./gradlew check verifyPlugin buildPlugin
+        # configuration-cache off: avoids ClosedFileSystemException when indexing
+        # ideaIC bundled plugins (com.intellij.java) on GitHub Actions runners.
+        run: ./gradlew check verifyPlugin buildPlugin -Dorg.gradle.configuration-cache=false
 
       - name: Create draft GitHub Release
         uses: softprops/action-gh-release@v2
@@ -101,6 +103,9 @@ jobs:
           fi
           echo "Publishing version: $VERSION (tag $TAG)"
 
+      # Validation (check/verifyPlugin) already ran in draft-release on the same tag.
+      # Re-running them here only re-triggers the flaky IDE layout index
+      # (ClosedFileSystemException → missing bundled com.intellij.java).
       - name: Publish plugin to JetBrains Marketplace
         env:
           PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
@@ -109,4 +114,4 @@ jobs:
             echo "Secret PUBLISH_TOKEN is not set" >&2
             exit 1
           fi
-          ./gradlew check verifyPlugin publishPlugin
+          ./gradlew publishPlugin -Dorg.gradle.configuration-cache=false
